@@ -129,13 +129,8 @@ namespace ui
     // Keyboard key cap; selected adds the yellow fill and red outline around it.
     void key_cap(int x, int y, int width, int height, char label, bool selected, uint8_t panel_color);
 
-    // "Unlocking..." style box with an indeterminate bar.
+    // "Unlocking..." style box. The bar block is static (the CPU is busy while it's shown).
     void busy_box(const bn::string_view& title, const bn::string_view& subtitle);
-
-    // Animate the busy bar from an interrupt while the CPU is blocked (e.g. by Argon2).
-    // Call start after the box is on screen, and stop as soon as the work is done.
-    void busy_animation_start();
-    void busy_animation_stop();
 
     // Stable badge color for an account name.
     uint8_t badge_color(const char* name);
