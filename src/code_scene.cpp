@@ -1,9 +1,7 @@
 #include "code_scene.h"
 
-#include "bn_timer.h"
 #include "bn_keypad.h"
 #include "bn_string.h"
-#include "bn_timers.h"
 
 #include "app_clock.h"
 #include "app_text.h"
@@ -59,9 +57,6 @@ namespace
         popup_rename, popup_change_key, popup_move, popup_delete, popup_cancel
     };
     constexpr popup_option sorted_options[] = { popup_rename, popup_change_key, popup_delete, popup_cancel };
-
-    // TEMPORARY: shows how long the last list redraw took (ms) in the footer's left corner.
-    constexpr bool show_redraw_time = true;
 
     enum class modal_type
     {
@@ -848,9 +843,6 @@ code_scene_action run_code_scene(account_list& accounts, int& selected)
             }
         }
 
-        bool redrew = list_changed || list_only || open_modal || moved_from >= 0;
-        bn::timer redraw_timer;
-
         if(list_changed)
         {
             view.redraw_list();
@@ -879,15 +871,6 @@ code_scene_action run_code_scene(account_list& accounts, int& selected)
             }
         }
 
-        if(show_redraw_time && redrew && view.modal == modal_type::none)
-        {
-            int ms = int(int64_t(redraw_timer.elapsed_ticks()) * 1000 / bn::timers::ticks_per_second());
-            bn::string<8> ms_text;
-            append_padded(ms_text, ms, 1);
-            ms_text += "ms";
-            ui::fill(2, footer_top + 2, 28, 12, ui::ink);
-            ui::text(ui::font::digits, ms_text, 3, footer_text_y, ui::selection);
-        }
 
         // Cursor bob: 1 px right for 16 frames, then back.
         ++view.frame_counter;
