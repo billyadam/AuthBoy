@@ -14,6 +14,8 @@
 #include "bn_sprite_items_common_fixed_8x16_font.h"
 #include "common_variable_8x16_sprite_font.h"
 
+#include "ui_raster.h"
+
 namespace ui
 {
 
@@ -104,21 +106,32 @@ namespace
             return;
         }
 
-        for(int word = 0; word < int(sizeof(dirty) / sizeof(dirty[0])); ++word)
+        // Copy each run of consecutive changed tiles with one call (canvas and VRAM use the
+        // same tile order, so a run is contiguous in both).
+        int index = 0;
+
+        while(index < tile_count)
         {
-            uint32_t bits = dirty[word];
-
-            while(bits)
+            if(! (dirty[index >> 5] & (1u << (index & 31))))
             {
-                int bit = __builtin_ctz(bits);
-                bits &= bits - 1;
-
-                int index = (word << 5) + bit;
-                const bn::tile* source = reinterpret_cast<const bn::tile*>(canvas + index * tile_bytes);
-                bn::memory::copy(*source, 2, vram_tiles[index * 2]);
+                ++index;
+                continue;
             }
 
-            dirty[word] = 0;
+            int run_start = index;
+
+            while(index < tile_count && (dirty[index >> 5] & (1u << (index & 31))))
+            {
+                ++index;
+            }
+
+            const bn::tile* source = reinterpret_cast<const bn::tile*>(canvas + run_start * tile_bytes);
+            bn::memory::copy(*source, (index - run_start) * 2, vram_tiles[run_start * 2]);
+        }
+
+        for(uint32_t& word : dirty)
+        {
+            word = 0;
         }
 
         any_dirty = false;
@@ -156,18 +169,45 @@ namespace
     constexpr int glyph_first_row = 5;
     constexpr int glyph_rows = 9;
 
-    // Butano font images have no glyph for the space: their first glyph is '!'.
-    // Returns nullptr for characters with nothing to draw.
-    const bn::tile* glyph_tiles(font text_font, char c)
+    constexpr int glyph_count = 95;    // ASCII 32..126
+
+    // Per glyph and row: bit n set = column n is filled. Built once from the font tiles, so
+    // drawing text doesn't decode 4bpp pixels every time.
+    uint8_t glyph_masks[2][glyph_count][glyph_rows];
+
+    void build_glyph_masks(int font_index, const bn::tile* tiles, int fill_index, int column_offset)
     {
-        int index = glyph_index(c);
-
-        if(index == 0)
+        for(int glyph = 0; glyph < glyph_count; ++glyph)
         {
-            return nullptr;
-        }
+            for(int row = 0; row < glyph_rows; ++row)
+            {
+                uint8_t mask = 0;
 
-        return &(text_font == font::digits ? digits_tiles : body_tiles)[(index - 1) * 2];
+                // Butano font images have no glyph for the space: their first glyph is '!'.
+                if(glyph > 0)
+                {
+                    const bn::tile* glyph_tiles = tiles + (glyph - 1) * 2;
+                    int cell_row = glyph_first_row + row;
+                    uint32_t bits = glyph_tiles[cell_row / 8].data[cell_row % 8];
+
+                    for(int column = column_offset; column < 8; ++column)
+                    {
+                        if(int((bits >> (column * 4)) & 0xF) == fill_index)
+                        {
+                            mask |= uint8_t(1 << (column - column_offset));
+                        }
+                    }
+
+                    // Fixed font: a pixel in column 0 (e.g. 'M') sits one pixel left of the cell.
+                    if(column_offset && int(bits & 0xF) == fill_index)
+                    {
+                        mask |= 0x80;
+                    }
+                }
+
+                glyph_masks[font_index][glyph][row] = mask;
+            }
+        }
     }
 
     int advance(font text_font, char c, int scale)
@@ -182,44 +222,35 @@ namespace
 
     void draw_glyph(font text_font, char c, int x, int y, uint8_t color, int scale)
     {
-        const bn::tile* glyph = glyph_tiles(text_font, c);
+        int index = glyph_index(c);
 
-        if(! glyph)
+        if(index == 0)
         {
             return;
         }
 
         bool digits = text_font == font::digits;
-        int fill_index = digits ? digits_fill_index : body_fill_index;
-        int column_offset = digits ? 1 : 0;    // fixed font glyphs start one column in
+        const uint8_t* masks = glyph_masks[digits ? 1 : 0][index];
 
-        for(int row = 0; row < glyph_rows; ++row)
+        if(digits && (masks[0] | masks[1] | masks[2] | masks[3] | masks[4] | masks[5] | masks[6] | masks[7] |
+                      masks[8]) & 0x80)
         {
-            int cell_row = glyph_first_row + row;
-            uint32_t bits = glyph[cell_row / 8].data[cell_row % 8];
+            // Column 0 pixel of the fixed font: drawn one pixel to the left (see build_glyph_masks).
+            uint8_t left[glyph_rows];
+            uint8_t rest[glyph_rows];
 
-            if(! bits)
+            for(int row = 0; row < glyph_rows; ++row)
             {
-                continue;
+                left[row] = masks[row] & 0x80 ? 1 : 0;
+                rest[row] = masks[row] & 0x7F;
             }
 
-            for(int column = 0; column < 8; ++column)
-            {
-                if(int((bits >> (column * 4)) & 0xF) == fill_index)
-                {
-                    int px = x + (column - column_offset) * scale;
-                    int py = y + row * scale;
-
-                    for(int sy = 0; sy < scale; ++sy)
-                    {
-                        for(int sx = 0; sx < scale; ++sx)
-                        {
-                            put(px + sx, py + sy, color);
-                        }
-                    }
-                }
-            }
+            raster::glyph(canvas, left, glyph_rows, x - scale, y, scale, color);
+            raster::glyph(canvas, rest, glyph_rows, x, y, scale, color);
+            return;
         }
+
+        raster::glyph(canvas, masks, glyph_rows, x, y, scale, color);
     }
 }
 
@@ -230,6 +261,8 @@ void init()
 
     body_tiles = bn::sprite_items::common_variable_8x16_font.tiles_item().tiles_ref().data();
     digits_tiles = bn::sprite_items::common_fixed_8x16_font.tiles_item().tiles_ref().data();
+    build_glyph_masks(0, body_tiles, body_fill_index, 0);
+    build_glyph_masks(1, digits_tiles, digits_fill_index, 1);   // fixed font glyphs start one column in
 
     // 8bpp tiles are counted in 4bpp units by Butano. No offset: the map indexes them directly.
     bg_tiles = bn::regular_bg_tiles_ptr::allocate(tile_count * 2, bn::bpp_mode::BPP_8, false);
@@ -267,32 +300,7 @@ void fill(int x, int y, int width, int height, uint8_t color)
         return;
     }
 
-    for(int py = y0; py < y1; ++py)
-    {
-        uint8_t* row = canvas + (py >> 3) * tile_columns * tile_bytes + ((py & 7) << 3);
-        int px = x0;
-
-        while(px < x1)
-        {
-            int start = px & 7;
-            int end = start + (x1 - px);
-
-            if(end > 8)
-            {
-                end = 8;
-            }
-
-            uint8_t* pixels = row + (px >> 3) * tile_bytes;
-
-            for(int i = start; i < end; ++i)
-            {
-                pixels[i] = color;
-            }
-
-            px += end - start;
-        }
-    }
-
+    raster::fill(canvas, x0, y0, x1, y1, color);
     mark_dirty(x0, y0, x1 - x0, y1 - y0);
 }
 
@@ -305,12 +313,20 @@ void round_fill(int x, int y, int width, int height, int radius, uint8_t color)
         radius = max_radius;
     }
 
-    for(int row = 0; row < height; ++row)
+    if(radius <= 0)
     {
-        int edge_row = row < height - 1 - row ? row : height - 1 - row;
-        int row_inset = radius > 0 && edge_row < radius ? inset(radius, edge_row) : 0;
-        fill(x + row_inset, y + row, width - 2 * row_inset, 1, color);
+        fill(x, y, width, height, color);
+        return;
     }
+
+    for(int row = 0; row < radius; ++row)
+    {
+        int row_inset = inset(radius, row);
+        fill(x + row_inset, y + row, width - 2 * row_inset, 1, color);
+        fill(x + row_inset, y + height - 1 - row, width - 2 * row_inset, 1, color);
+    }
+
+    fill(x, y + radius, width, height - 2 * radius, color);
 }
 
 void stripes(int x, int y, int width, int height)

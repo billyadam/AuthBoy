@@ -1,7 +1,9 @@
 #include "code_scene.h"
 
+#include "bn_timer.h"
 #include "bn_keypad.h"
 #include "bn_string.h"
+#include "bn_timers.h"
 
 #include "app_clock.h"
 #include "app_text.h"
@@ -58,6 +60,9 @@ namespace
     };
     constexpr popup_option sorted_options[] = { popup_rename, popup_change_key, popup_delete, popup_cancel };
 
+    // TEMPORARY: shows how long the last list redraw took (ms) in the footer's left corner.
+    constexpr bool show_redraw_time = true;
+
     enum class modal_type
     {
         none,
@@ -76,15 +81,6 @@ namespace
 
         ++held_frames;
         return held_frames == 1 || (held_frames > 18 && (held_frames - 18) % 5 == 0);
-    }
-
-    template<int MaxSize>
-    void append_code(bn::string<MaxSize>& text, const account& item, int64_t utc)
-    {
-        uint32_t code = totp::totp(item.secret, item.secret_size, utc, totp_digits, totp_period);
-        append_padded(text, int(code / 1000), 3);
-        text += ' ';
-        append_padded(text, int(code % 1000), 3);
     }
 
     // Name text that fits max_width, with "..." if it had to be shortened.
@@ -120,6 +116,40 @@ namespace
         bool moving = false;
         int frame_counter = 0;
         int footer_message_frames = 0;      // > 0: "List full" shown in the footer
+
+        // Codes only change every 30 s: computed once per period, by stored account index.
+        uint32_t codes[max_accounts];
+        bool code_known[max_accounts];
+        int64_t codes_period = -1;
+
+        void invalidate_codes()
+        {
+            codes_period = -1;
+        }
+
+        uint32_t code_for(int index)
+        {
+            int64_t period = utc() / totp_period;
+
+            if(period != codes_period)
+            {
+                codes_period = period;
+
+                for(int i = 0; i < _accounts.count; ++i)
+                {
+                    code_known[i] = false;
+                }
+            }
+
+            if(! code_known[index])
+            {
+                const account& item = _accounts.items[index];
+                codes[index] = totp::totp(item.secret, item.secret_size, utc(), totp_digits, totp_period);
+                code_known[index] = true;
+            }
+
+            return codes[index];
+        }
         rtc_reading rtc = {};
 
         int row_h(int position) const
@@ -352,10 +382,12 @@ namespace
             const account& item = _accounts.items[order[position]];
             int width = row_width();
             int right = row_x + width;
-            int64_t now = utc();
 
+            uint32_t code = code_for(order[position]);
             bn::string<8> code_text;
-            append_code(code_text, item, now);
+            append_padded(code_text, int(code / 1000), 3);
+            code_text += ' ';
+            append_padded(code_text, int(code % 1000), 3);
 
             if(position == _selected)
             {
@@ -553,6 +585,47 @@ namespace
             draw_footer();
             draw_modal();
         }
+
+        // The selection moved from old_selected (or two rows were swapped): when the list didn't
+        // scroll, only the rows between the old and new position change, so only those are
+        // repainted. Rows keep their total height (one tall row either way), so nothing else moves.
+        void redraw_selection_change(int old_selected)
+        {
+            int old_first_visible = first_visible;
+            update_layout();
+
+            int first = old_selected < _selected ? old_selected : _selected;
+            int last = old_selected < _selected ? _selected : old_selected;
+
+            if(first_visible != old_first_visible || modal != modal_type::none || first < first_visible ||
+               last >= first_visible + visible_count)
+            {
+                draw_list();
+                return;
+            }
+
+            int y = rows_top;
+
+            for(int position = first_visible; position < first; ++position)
+            {
+                y += row_h(position) + row_gap;
+            }
+
+            int height = -row_gap;
+
+            for(int position = first; position <= last; ++position)
+            {
+                height += row_h(position) + row_gap;
+            }
+
+            ui::fill(row_x, y, row_width(), height, ui::white);
+
+            for(int position = first; position <= last; ++position)
+            {
+                draw_row(position, y);
+                y += row_h(position) + row_gap;
+            }
+        }
     };
 }
 
@@ -579,7 +652,10 @@ code_scene_action run_code_scene(account_list& accounts, int& selected)
 
     while(true)
     {
-        bool list_changed = false;
+        bool list_changed = false;      // list, footer and modal
+        bool list_only = false;         // list (+ modal on top)
+        bool open_modal = false;        // hide the footer and draw the modal over the list
+        int moved_from = -1;            // selection moved / rows swapped: repaint just those rows
         rtc_status old_status = view.rtc.status;
         view.rtc = read_rtc();
 
@@ -595,6 +671,7 @@ code_scene_action run_code_scene(account_list& accounts, int& selected)
             {
                 remove_account(accounts, view.order[selected]);
                 save_accounts(accounts);
+                view.invalidate_codes();
                 view.modal = modal_type::none;
                 list_changed = true;
             }
@@ -665,15 +742,17 @@ code_scene_action run_code_scene(account_list& accounts, int& selected)
             if(repeat(bn::keypad::up_held(), up_frames) && selected > 0)
             {
                 swap_accounts(accounts, selected, selected - 1);
+                moved_from = moved_from < 0 ? selected : moved_from;
                 --selected;
-                list_changed = true;
+                view.invalidate_codes();
             }
 
             if(repeat(bn::keypad::down_held(), down_frames) && selected < accounts.count - 1)
             {
                 swap_accounts(accounts, selected, selected + 1);
+                moved_from = moved_from < 0 ? selected : moved_from;
                 ++selected;
-                list_changed = true;
+                view.invalidate_codes();
             }
 
             if(bn::keypad::a_pressed() || bn::keypad::b_pressed())
@@ -703,18 +782,16 @@ code_scene_action run_code_scene(account_list& accounts, int& selected)
 
             if(accounts.count > 0 && view.rtc.status == rtc_status::ok)
             {
+                int old_selected = selected;
+
                 if(repeat(bn::keypad::up_held(), up_frames))
                 {
                     selected = selected == 0 ? accounts.count - 1 : selected - 1;
-                    view.frame_counter = 0;
-                    list_changed = true;
                 }
 
                 if(repeat(bn::keypad::down_held(), down_frames))
                 {
                     selected = selected == accounts.count - 1 ? 0 : selected + 1;
-                    view.frame_counter = 0;
-                    list_changed = true;
                 }
 
                 // L / R: a page up / down (no wrap-around).
@@ -723,15 +800,17 @@ code_scene_action run_code_scene(account_list& accounts, int& selected)
                 if(bn::keypad::l_pressed() && selected > 0)
                 {
                     selected = selected > page ? selected - page : 0;
-                    view.frame_counter = 0;
-                    list_changed = true;
                 }
 
                 if(bn::keypad::r_pressed() && selected < accounts.count - 1)
                 {
                     selected = selected + page < accounts.count - 1 ? selected + page : accounts.count - 1;
+                }
+
+                if(selected != old_selected)
+                {
                     view.frame_counter = 0;
-                    list_changed = true;
+                    moved_from = old_selected;
                 }
 
                 if(bn::keypad::a_pressed())
@@ -739,7 +818,7 @@ code_scene_action run_code_scene(account_list& accounts, int& selected)
                     view.modal = modal_type::menu;
                     view.menu_selected = 0;
                     view.frame_counter = 0;
-                    list_changed = true;
+                    open_modal = true;
                 }
             }
         }
@@ -764,14 +843,50 @@ code_scene_action run_code_scene(account_list& accounts, int& selected)
                 if(now / totp_period != last_period)
                 {
                     last_period = now / totp_period;
-                    list_changed = true;
+                    list_only = true;
                 }
             }
         }
 
+        bool redrew = list_changed || list_only || open_modal || moved_from >= 0;
+        bn::timer redraw_timer;
+
         if(list_changed)
         {
             view.redraw_list();
+        }
+        else
+        {
+            if(list_only)
+            {
+                view.update_layout();
+                view.draw_list();
+
+                if(view.modal != modal_type::none)
+                {
+                    view.draw_modal();
+                }
+            }
+            else if(moved_from >= 0)
+            {
+                view.redraw_selection_change(moved_from);
+            }
+
+            if(open_modal)
+            {
+                view.draw_footer();     // hidden while a modal is open
+                view.draw_modal();
+            }
+        }
+
+        if(show_redraw_time && redrew && view.modal == modal_type::none)
+        {
+            int ms = int(int64_t(redraw_timer.elapsed_ticks()) * 1000 / bn::timers::ticks_per_second());
+            bn::string<8> ms_text;
+            append_padded(ms_text, ms, 1);
+            ms_text += "ms";
+            ui::fill(2, footer_top + 2, 28, 12, ui::ink);
+            ui::text(ui::font::digits, ms_text, 3, footer_text_y, ui::selection);
         }
 
         // Cursor bob: 1 px right for 16 frames, then back.
