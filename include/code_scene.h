@@ -2,7 +2,6 @@
 #define CODE_SCENE_H
 
 #include "account_store.h"
-#include "app_text.h"
 
 namespace app
 {
@@ -18,7 +17,7 @@ namespace app
     // selected is a display position (see display_order). Up/Down select an account; A opens a
     // popup (rename, change key, move in custom order, delete with confirmation).
     // Returns when another screen is needed.
-    code_scene_action run_code_scene(text_generators& text, account_list& accounts, int& selected);
+    code_scene_action run_code_scene(account_list& accounts, int& selected);
 }
 
 #endif

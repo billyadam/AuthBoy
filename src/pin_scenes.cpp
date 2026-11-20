@@ -1,11 +1,12 @@
 #include "pin_scenes.h"
 
 #include "bn_keypad.h"
-#include "bn_vector.h"
-#include "bn_sprite_ptr.h"
+#include "bn_string.h"
 
+#include "app_text.h"
 #include "entropy.h"
 #include "keyboard.h"
+#include "ui.h"
 #include "vault.h"
 
 namespace app
@@ -13,37 +14,55 @@ namespace app
 
 namespace
 {
-    using sprite_vector = bn::vector<bn::sprite_ptr, 64>;
+    constexpr int blink_frames = 30;
 
-    // Draws a "please wait" screen and makes sure it's on screen before slow work starts.
-    void show_busy(text_generators& text, sprite_vector& sprites, const char* line)
+    // Header + "Unlocking..." style box, made visible before slow work (Argon2) starts.
+    void show_busy(const char* title)
     {
-        sprites.clear();
-        text.small.generate(0, -8, line, sprites);
-        text.small.generate(0, 12, "This takes a few seconds", sprites);
+        ui::background();
+        ui::header("AuthBoy");
+        ui::busy_box(title, "This takes a few seconds");
         frame_update();
         frame_update();
     }
 
-    // Shows up to three lines and waits for A (returns true) or B (returns false).
-    bool message_screen(text_generators& text, const char* line_1, const char* line_2, const char* line_3,
-                        const char* buttons)
+    // "(A) label" followed by the blinking "next" arrow, right-aligned to right_x.
+    void draw_continue(int right_x, int y, const char* label, bool arrow_visible)
     {
-        sprite_vector sprites;
-        text.small.generate(0, -40, line_1, sprites);
+        int label_width = ui::text_width(ui::font::body, label);
+        int x = right_x - 5 - 4 - label_width - 3 - 10;
+        ui::round_button(x, y - 1, "A", ui::ink, ui::white);
+        ui::text(ui::font::body, label, x + 13, y, ui::ink, ui::light_shadow);
+        ui::fill(right_x - 5, y + 2, 5, 3, ui::white);
 
-        if(line_2)
+        if(arrow_visible)
         {
-            text.small.generate(0, -16, line_2, sprites);
+            ui::cursor_down(right_x - 5, y + 2, ui::red);
+        }
+    }
+
+    // Dialogue box with up to three lines; waits for A (returns true) or B (returns false).
+    bool message_screen(const char* line_1, const char* line_2, const char* line_3, const char* a_label)
+    {
+        const char* lines[3] = { line_1, line_2, line_3 };
+        int line_count = line_3 ? 3 : line_2 ? 2 : 1;
+        int height = 10 + line_count * 12 + 22;
+        int x = 4, y = 156 - height, width = 232;
+        int button_y = y + height - 18;
+
+        ui::background();
+        ui::header("AuthBoy");
+        ui::panel(x, y, width, height, ui::white, true);
+
+        for(int i = 0; i < line_count; ++i)
+        {
+            ui::text(ui::font::body, lines[i], x + 8, y + 10 + i * 12, ui::ink, ui::light_shadow);
         }
 
-        if(line_3)
-        {
-            text.small.generate(0, 4, line_3, sprites);
-        }
-
-        text.small.generate(0, 50, buttons, sprites);
+        draw_continue(x + width - 8, button_y, a_label, true);
         frame_update();
+
+        int blink_counter = 0;
 
         while(true)
         {
@@ -55,6 +74,45 @@ namespace
             if(bn::keypad::b_pressed())
             {
                 return false;
+            }
+
+            ++blink_counter;
+
+            if(blink_counter % blink_frames == 0)
+            {
+                draw_continue(x + width - 8, button_y, a_label, (blink_counter / blink_frames) % 2 == 0);
+            }
+
+            frame_update();
+        }
+    }
+
+    // Screen 10: first-run welcome.
+    void welcome_screen()
+    {
+        ui::background();
+        ui::fill(0, 0, 240, 76, ui::red);
+        ui::fill(0, 1, 240, 1, ui::header_light);
+        ui::fill(0, 64, 240, 4, ui::hero_accent);
+        ui::fill(0, 76, 240, 2, ui::header_shadow);
+        ui::text(ui::font::body, "Welcome to", 120, 18, ui::header_subtext, ui::no_shadow, 1, ui::align::center);
+        ui::text(ui::font::body, "AuthBoy", 120, 30, ui::white, ui::header_shadow, 4, ui::align::center, 2);
+
+        constexpr int x = 4, y = 100, width = 232, height = 56;
+        ui::panel(x, y, width, height, ui::white, true);
+        ui::text(ui::font::body, "Set a PIN to encrypt your accounts", x + 8, y + 10, ui::ink, ui::light_shadow);
+        draw_continue(x + width - 8, y + 34, "continue", true);
+        frame_update();
+
+        int blink_counter = 0;
+
+        while(! bn::keypad::a_pressed())
+        {
+            ++blink_counter;
+
+            if(blink_counter % blink_frames == 0)
+            {
+                draw_continue(x + width - 8, y + 34, "continue", (blink_counter / blink_frames) % 2 == 0);
             }
 
             frame_update();
@@ -90,7 +148,7 @@ namespace
     }
 
     // Asks for the current PIN and checks it. Returns false if the user gives up.
-    bool confirm_current_pin(text_generators& text)
+    bool confirm_current_pin()
     {
         bn::string<64> pin;
         const char* message = nullptr;
@@ -99,7 +157,7 @@ namespace
         {
             wipe_string(pin);
 
-            if(! run_keyboard(text, keyboard_layout::pin, "Current PIN", pin, vault::max_pin_chars, message))
+            if(! run_keyboard(keyboard_layout::pin, "Current PIN", pin, vault::max_pin_chars, message))
             {
                 return false;
             }
@@ -110,13 +168,8 @@ namespace
                 continue;
             }
 
-            pin_result result;
-
-            {
-                sprite_vector sprites;
-                show_busy(text, sprites, "Checking PIN...");
-                result = verify_pin(pin.data(), pin.size());
-            }
+            show_busy("Checking PIN...");
+            pin_result result = verify_pin(pin.data(), pin.size());
 
             if(result == pin_result::ok)
             {
@@ -130,7 +183,7 @@ namespace
 
     // Asks for a new PIN twice and encrypts the accounts with it.
     // If required, cancelling just asks again.
-    bool choose_new_pin(text_generators& text, account_list& accounts, bool required)
+    bool choose_new_pin(account_list& accounts, bool required)
     {
         bn::string<64> pin;
         bn::string<64> confirmation;
@@ -141,7 +194,7 @@ namespace
             wipe_string(pin);
             wipe_string(confirmation);
 
-            if(! run_keyboard(text, keyboard_layout::pin, "New PIN", pin, vault::max_pin_chars, message))
+            if(! run_keyboard(keyboard_layout::pin, "New PIN", pin, vault::max_pin_chars, message))
             {
                 if(required)
                 {
@@ -161,7 +214,7 @@ namespace
             const char* confirm_message = pin.size() < vault::recommended_pin_chars ?
                         "Short PIN: 8+ is much harder to crack" : nullptr;
 
-            if(! run_keyboard(text, keyboard_layout::pin, "Confirm PIN", confirmation, vault::max_pin_chars,
+            if(! run_keyboard(keyboard_layout::pin, "Confirm PIN", confirmation, vault::max_pin_chars,
                               confirm_message))
             {
                 message = "6-16 characters, 8+ recommended";
@@ -177,42 +230,35 @@ namespace
             break;
         }
 
-        pin_result result;
-
-        {
-            sprite_vector sprites;
-            show_busy(text, sprites, "Encrypting...");
-            result = set_pin(pin.data(), pin.size(), accounts);
-        }
-
+        show_busy("Encrypting...");
+        pin_result result = set_pin(pin.data(), pin.size(), accounts);
         wipe_string(pin);
         wipe_string(confirmation);
 
         if(result != pin_result::ok)
         {
-            message_screen(text, "Couldn't set the PIN", "Not enough memory", nullptr, "A: OK");
+            message_screen("Couldn't set the PIN", "Not enough memory", nullptr, "OK");
             return false;
         }
 
         bn::string<48> timing = "Unlocking takes about ";
         append_seconds(timing, last_kdf_milliseconds());
-        message_screen(text, "PIN set, accounts encrypted", timing.c_str(),
-                       "Forgotten PINs can't be recovered!", "A: OK");
+        message_screen("PIN set, accounts encrypted", timing.c_str(), "Forgotten PINs can't be recovered!", "OK");
         return true;
     }
 }
 
-void run_pin_setup_scene(text_generators& text, account_list& accounts)
+void run_pin_setup_scene(account_list& accounts)
 {
-    message_screen(text, "Welcome to AuthBoy", "Set a PIN to encrypt your accounts", nullptr, "A: continue");
+    welcome_screen();
 
     while(! pin_enabled())
     {
-        choose_new_pin(text, accounts, true);
+        choose_new_pin(accounts, true);
     }
 }
 
-void run_unlock_scene(text_generators& text, account_list& accounts)
+void run_unlock_scene(account_list& accounts)
 {
     bn::string<64> pin;
     const char* message = nullptr;
@@ -221,7 +267,7 @@ void run_unlock_scene(text_generators& text, account_list& accounts)
     {
         wipe_string(pin);
 
-        if(! run_keyboard(text, keyboard_layout::pin, "Enter PIN", pin, vault::max_pin_chars, message))
+        if(! run_keyboard(keyboard_layout::pin, "Enter PIN", pin, vault::max_pin_chars, message))
         {
             message = nullptr;
             continue;
@@ -233,13 +279,8 @@ void run_unlock_scene(text_generators& text, account_list& accounts)
             continue;
         }
 
-        pin_result result;
-
-        {
-            sprite_vector sprites;
-            show_busy(text, sprites, "Unlocking...");
-            result = unlock_accounts(pin.data(), pin.size(), accounts);
-        }
+        show_busy("Unlocking...");
+        pin_result result = unlock_accounts(pin.data(), pin.size(), accounts);
 
         if(result == pin_result::wrong_pin)
         {
@@ -254,7 +295,7 @@ void run_unlock_scene(text_generators& text, account_list& accounts)
     wipe_string(pin);
 }
 
-void run_settings_menu(text_generators& text, account_list& accounts)
+void run_settings_menu(account_list& accounts)
 {
     enum option
     {
@@ -264,26 +305,62 @@ void run_settings_menu(text_generators& text, account_list& accounts)
         option_count
     };
 
-    constexpr const char* option_names[option_count] = { nullptr, "Lock now", "Change PIN" };
+    constexpr const char* option_names[option_count] = { "Sort", "Lock now", "Change PIN" };
+    constexpr ui::hint footer[] = { { "A", "choose" }, { "B", "back" } };
+
+    // Screen 05 geometry
+    constexpr int box_x = 4, box_y = 52, box_width = 232;
+    constexpr int box_height = 9 + option_count * 18 + 1;
 
     int selected = 0;
-    bool redraw = true;
+    int frame_counter = 0;
 
-    sprite_vector sprites;
+    auto draw_item = [&](int index)
+    {
+        int item_y = box_y + 9 + index * 18;
+        bool is_selected = index == selected;
+        ui::menu_item(box_x, box_width, item_y, option_names[index], ui::ink, ui::light_shadow, is_selected,
+                      is_selected ? ui::cursor_bob(frame_counter) : 0);
+
+        if(index == option_sort)
+        {
+            const char* value = accounts.custom_order ? "CUSTOM" : "A-Z";
+            int pill_x = box_x + box_width - 10 - ui::pill_width(value);
+            ui::pill(pill_x, item_y - 1, value, ui::ink, ui::white);
+        }
+    };
+
+    ui::background();
+    ui::header("Settings");
+
+    ui::panel(4, 28, 232, 18, ui::info, false);
+    ui::round_fill(8, 33, 8, 8, 4, ui::green);
+    ui::fill(10, 34, 4, 2, ui::green_shine);
+    ui::text(ui::font::body, "PIN lock on: accounts are encrypted", 20, 33, ui::ink);
+
+    ui::panel(box_x, box_y, box_width, box_height, ui::white, true);
+
+    for(int i = 0; i < option_count; ++i)
+    {
+        draw_item(i);
+    }
+
+    ui::footer_bar(144);
+    ui::footer_hints(147, footer, 2);
     frame_update();
 
     while(true)
     {
+        int old_selected = selected;
+
         if(bn::keypad::up_pressed())
         {
             selected = selected == 0 ? option_count - 1 : selected - 1;
-            redraw = true;
         }
 
         if(bn::keypad::down_pressed())
         {
             selected = selected == option_count - 1 ? 0 : selected + 1;
-            redraw = true;
         }
 
         if(bn::keypad::b_pressed())
@@ -300,7 +377,7 @@ void run_settings_menu(text_generators& text, account_list& accounts)
                 // Only changes how the list is shown; the custom order is kept.
                 accounts.custom_order = ! accounts.custom_order;
                 save_accounts(accounts);
-                redraw = true;
+                draw_item(option_sort);
                 break;
 
             case option_lock:
@@ -308,11 +385,9 @@ void run_settings_menu(text_generators& text, account_list& accounts)
                 return;
 
             case option_change:
-                sprites.clear();
-
-                if(confirm_current_pin(text))
+                if(confirm_current_pin())
                 {
-                    choose_new_pin(text, accounts, false);
+                    choose_new_pin(accounts, false);
                 }
 
                 return;
@@ -322,33 +397,22 @@ void run_settings_menu(text_generators& text, account_list& accounts)
             }
         }
 
-        if(redraw)
+        if(selected != old_selected)
         {
-            redraw = false;
-            sprites.clear();
+            frame_counter = 0;
+            draw_item(old_selected);
+            draw_item(selected);
+        }
 
-            text.small.generate(0, -66, "Settings", sprites);
+        ++frame_counter;
 
-            for(int i = 0; i < option_count; ++i)
-            {
-                bn::string<32> line = i == selected ? "> " : "  ";
-
-                if(i == option_sort)
-                {
-                    line += accounts.custom_order ? "Sort: Custom" : "Sort: A-Z";
-                }
-                else
-                {
-                    line += option_names[i];
-                }
-
-                text.small.generate(0, -30 + i * 18, line, sprites);
-            }
-
-            text.small.generate(0, 66, "A: choose   B: back", sprites);
+        if(frame_counter % 16 == 0)
+        {
+            draw_item(selected);
         }
 
         frame_update();
     }
 }
+
 }

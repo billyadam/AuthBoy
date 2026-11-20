@@ -2,21 +2,11 @@
 #define APP_TEXT_H
 
 #include "bn_string.h"
-#include "bn_sprite_text_generator.h"
 
 #include "totp.h"
 
 namespace app
 {
-    // The fonts used across the app.
-    struct text_generators
-    {
-        bn::sprite_text_generator small;    // variable width 8x16
-        bn::sprite_text_generator mono;     // fixed width 8x16, for aligned fields and codes
-
-        text_generators();
-    };
-
     template<int MaxSize>
     void append_padded(bn::string<MaxSize>& text, int value, int width)
     {

@@ -12,13 +12,13 @@ namespace app
 namespace
 {
     // Asks for a non-empty name. name holds the initial text and receives the result.
-    bool ask_name(text_generators& text, const char* title, bn::string<64>& name)
+    bool ask_name(const char* title, bn::string<64>& name)
     {
         const char* message = nullptr;
 
         while(true)
         {
-            if(! run_keyboard(text, keyboard_layout::name, title, name, max_label_chars, message))
+            if(! run_keyboard(keyboard_layout::name, title, name, max_label_chars, message))
             {
                 return false;
             }
@@ -39,14 +39,14 @@ namespace
     }
 
     // Asks for a Base32 secret and decodes it into secret / secret_size.
-    bool ask_secret(text_generators& text, const char* title, uint8_t* secret, uint8_t& secret_size)
+    bool ask_secret(const char* title, uint8_t* secret, uint8_t& secret_size)
     {
         bn::string<64> secret_text;
         const char* message = nullptr;
 
         while(true)
         {
-            if(! run_keyboard(text, keyboard_layout::base32, title, secret_text, max_secret_chars, message))
+            if(! run_keyboard(keyboard_layout::base32, title, secret_text, max_secret_chars, message))
             {
                 wipe_string(secret_text);
                 return false;
@@ -111,7 +111,7 @@ namespace
     }
 }
 
-bool run_add_account(text_generators& text, account_list& accounts, int& new_index)
+bool run_add_account(account_list& accounts, int& new_index)
 {
     if(accounts.count >= max_accounts)
     {
@@ -120,14 +120,14 @@ bool run_add_account(text_generators& text, account_list& accounts, int& new_ind
 
     bn::string<64> name;
 
-    if(! ask_name(text, "Account name", name))
+    if(! ask_name("Account name", name))
     {
         return false;
     }
 
     account new_account = {};
 
-    if(! ask_secret(text, "Secret key", new_account.secret, new_account.secret_size))
+    if(! ask_secret("Secret key", new_account.secret, new_account.secret_size))
     {
         return false;
     }
@@ -141,7 +141,7 @@ bool run_add_account(text_generators& text, account_list& accounts, int& new_ind
     return true;
 }
 
-bool run_rename_account(text_generators& text, account_list& accounts, int index)
+bool run_rename_account(account_list& accounts, int index)
 {
     if(index < 0 || index >= accounts.count)
     {
@@ -150,7 +150,7 @@ bool run_rename_account(text_generators& text, account_list& accounts, int index
 
     bn::string<64> name = accounts.items[index].label;
 
-    if(! ask_name(text, "Rename", name))
+    if(! ask_name("Rename", name))
     {
         return false;
     }
@@ -160,7 +160,7 @@ bool run_rename_account(text_generators& text, account_list& accounts, int index
     return true;
 }
 
-bool run_change_secret(text_generators& text, account_list& accounts, int index)
+bool run_change_secret(account_list& accounts, int index)
 {
     if(index < 0 || index >= accounts.count)
     {
@@ -170,7 +170,7 @@ bool run_change_secret(text_generators& text, account_list& accounts, int index)
     uint8_t secret[max_secret_bytes] = {};
     uint8_t secret_size = 0;
 
-    if(! ask_secret(text, "New secret key", secret, secret_size))
+    if(! ask_secret("New secret key", secret, secret_size))
     {
         return false;
     }
