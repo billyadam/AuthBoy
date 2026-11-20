@@ -4,7 +4,7 @@ A TOTP authenticator (like Google Authenticator) for the Game Boy Advance, built
 [Butano](https://github.com/GValiente/butano).
 
 - 6-digit TOTP codes (RFC 6238, SHA-1, 30 s), shown as a scrolling list with a shared countdown
-- Up to 16 accounts, entered with an on-screen Base32 keyboard
+- Up to 256 accounts, entered with an on-screen Base32 keyboard
 - Rename, change key, delete; sort A-Z or in a custom order
 - Mandatory PIN: accounts are encrypted in save memory with XChaCha20-Poly1305,
   key derived from the PIN with Argon2id (via [Monocypher](https://monocypher.org/))
@@ -50,7 +50,7 @@ make -C tests
 
 | Screen | Controls |
 |---|---|
-| List | Up/Down: select, A: options (rename, change key, move, delete), START: add, SELECT: settings |
+| List | Up/Down: select, L/R: page up/down, A: options (rename, change key, move, delete), START: add, SELECT: settings |
 | Keyboard | D-pad: move, A: type, B: delete, START: done, L: cancel (name: SELECT case, R space) |
 | Settings | Sort A-Z / Custom, Lock now, Change PIN |
 

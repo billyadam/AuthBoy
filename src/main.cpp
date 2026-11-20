@@ -9,8 +9,8 @@
 
 namespace
 {
-    // Static: the account list is ~1 KB, kept off the small GBA stack.
-    app::account_list accounts;
+    // ~15 KB: kept in EWRAM (uninitialized; load_accounts resets it before use).
+    BN_DATA_EWRAM_BSS app::account_list accounts;
 }
 
 int main()

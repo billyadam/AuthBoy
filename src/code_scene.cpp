@@ -119,6 +119,7 @@ namespace
         int menu_selected = 0;
         bool moving = false;
         int frame_counter = 0;
+        int footer_message_frames = 0;      // > 0: "List full" shown in the footer
         rtc_reading rtc = {};
 
         int row_h(int position) const
@@ -450,7 +451,14 @@ namespace
             ui::stripes(0, list_y + list_height, 240, footer_top - (list_y + list_height));
             ui::footer_bar(footer_top);
 
-            if(moving)
+            if(footer_message_frames > 0)
+            {
+                bn::string<32> message = "List full: ";
+                append_padded(message, max_accounts, 1);
+                message += " accounts";
+                ui::footer_message(footer_text_y, message);
+            }
+            else if(moving)
             {
                 constexpr ui::hint hints[] = { { "UP/DOWN", "move" }, { "A", "done" } };
                 ui::footer_hints(footer_text_y, hints, 2);
@@ -677,9 +685,15 @@ code_scene_action run_code_scene(account_list& accounts, int& selected)
         }
         else
         {
-            if(bn::keypad::start_pressed() && accounts.count < max_accounts)
+            if(bn::keypad::start_pressed())
             {
-                return code_scene_action::add_account;
+                if(accounts.count < max_accounts)
+                {
+                    return code_scene_action::add_account;
+                }
+
+                view.footer_message_frames = 120;
+                view.draw_footer();
             }
 
             if(bn::keypad::select_pressed())
@@ -703,6 +717,23 @@ code_scene_action run_code_scene(account_list& accounts, int& selected)
                     list_changed = true;
                 }
 
+                // L / R: a page up / down (no wrap-around).
+                int page = view.visible_count > 1 ? view.visible_count - 1 : 1;
+
+                if(bn::keypad::l_pressed() && selected > 0)
+                {
+                    selected = selected > page ? selected - page : 0;
+                    view.frame_counter = 0;
+                    list_changed = true;
+                }
+
+                if(bn::keypad::r_pressed() && selected < accounts.count - 1)
+                {
+                    selected = selected + page < accounts.count - 1 ? selected + page : accounts.count - 1;
+                    view.frame_counter = 0;
+                    list_changed = true;
+                }
+
                 if(bn::keypad::a_pressed())
                 {
                     view.modal = modal_type::menu;
@@ -711,6 +742,12 @@ code_scene_action run_code_scene(account_list& accounts, int& selected)
                     list_changed = true;
                 }
             }
+        }
+
+        // "List full" message: shown for 2 seconds.
+        if(view.footer_message_frames > 0 && --view.footer_message_frames == 0)
+        {
+            view.draw_footer();
         }
 
         // Once per second: clock and TIME bar. When the period rolls over: every code.

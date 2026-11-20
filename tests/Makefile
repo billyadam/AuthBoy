@@ -4,9 +4,10 @@ CC       ?= gcc
 CXXFLAGS := -std=c++20 -O2 -Wall -Wextra -Werror -I../include -I../third_party/monocypher
 CFLAGS   := -std=c99 -O2
 
-run: totp_host_test vault_host_test
+run: totp_host_test vault_host_test store_host_test
 	./totp_host_test
 	./vault_host_test
+	./store_host_test
 
 totp_host_test: totp_host_test.cpp ../src/totp.cpp ../include/totp.h
 	$(CXX) $(CXXFLAGS) totp_host_test.cpp ../src/totp.cpp -o $@
@@ -17,7 +18,12 @@ monocypher.o: ../third_party/monocypher/monocypher.c ../third_party/monocypher/m
 vault_host_test: vault_host_test.cpp ../src/vault.cpp ../include/vault.h monocypher.o
 	$(CXX) $(CXXFLAGS) vault_host_test.cpp ../src/vault.cpp monocypher.o -o $@
 
+# The account store with stand-ins for Butano's SRAM, timer and memory (tests/stubs).
+store_host_test: store_host_test.cpp ../src/account_store.cpp ../include/account_store.h ../src/vault.cpp \
+                 monocypher.o $(wildcard stubs/*.h)
+	$(CXX) $(CXXFLAGS) -Istubs store_host_test.cpp ../src/account_store.cpp ../src/vault.cpp monocypher.o -o $@
+
 clean:
-	rm -f totp_host_test vault_host_test monocypher.o
+	rm -f totp_host_test vault_host_test store_host_test monocypher.o
 
 .PHONY: run clean

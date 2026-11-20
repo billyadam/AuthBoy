@@ -5,7 +5,7 @@
 
 namespace app
 {
-    constexpr int max_accounts = 16;
+    constexpr int max_accounts = 256;
     constexpr int max_label_chars = 16;
     constexpr int max_secret_chars = 64;    // Base32 characters typed by the user
     constexpr int max_secret_bytes = 40;    // 64 Base32 chars decode to 40 bytes
