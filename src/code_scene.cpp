@@ -31,7 +31,11 @@ namespace
     constexpr int scrollbar_x = inner_right - 3 - 4;            // 227
     constexpr int scrollbar_height = 89;
 
-    constexpr int time_bar_x = 33, time_bar_y = 29, time_bar_width = 178, time_bar_height = 8;
+    constexpr int time_tag_x = 6, time_tag_y = 28;
+    constexpr int time_bar_y = 29, time_bar_height = 8;
+    constexpr int time_label_right = 233;
+    constexpr int time_gap = 4;                                 // around the bar
+    constexpr int header_title_end = 104;                       // the 2x "AuthBoy" (with its shadow) ends before this
     constexpr int footer_top = 144, footer_text_y = 147;
 
     // Account menu (screen 03) and delete confirm (screen 04)
@@ -206,7 +210,7 @@ namespace
 
         void draw_clock()
         {
-            ui::header_band_clear(92, 148);
+            ui::header_band_clear(header_title_end, 240 - header_title_end);
 
             if(rtc.status != rtc_status::ok)
             {
@@ -257,8 +261,12 @@ namespace
 
             // TIME tag
             int tag_width = ui::text_width(ui::font::digits, "TIME") + 4;
-            ui::round_fill(6, 28, tag_width, 10, 2, ui::ink);
-            ui::text(ui::font::digits, "TIME", 8, 29, ui::selection);
+
+            // The bar sits between the tag and the widest seconds label ("30s").
+            int time_bar_x = time_tag_x + tag_width + time_gap;
+            int time_bar_width = time_label_right - ui::text_width(ui::font::digits, "30s") - time_gap - time_bar_x;
+            ui::round_fill(time_tag_x, time_tag_y, tag_width, 10, 2, ui::ink);
+            ui::text(ui::font::digits, "TIME", time_tag_x + 2, time_tag_y + 1, ui::selection);
 
             // Bar: green > 10 s, yellow 6-10 s, red <= 5 s
             uint8_t fill_color = ui::green;
@@ -293,7 +301,7 @@ namespace
             bn::string<8> seconds_text;
             append_padded(seconds_text, remaining, 1);
             seconds_text += 's';
-            ui::text(ui::font::digits, seconds_text, 233, 29, remaining <= 5 ? ui::red : ui::ink, ui::no_shadow, 1,
+            ui::text(ui::font::digits, seconds_text, time_label_right, time_bar_y, remaining <= 5 ? ui::red : ui::ink, ui::no_shadow, 1,
                      ui::align::right);
         }
 
