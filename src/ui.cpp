@@ -11,6 +11,8 @@
 #include "bn_regular_bg_map_ptr.h"
 #include "bn_regular_bg_tiles_ptr.h"
 
+#include "../hw/include/bn_hw_irq.h"
+
 #include "bn_sprite_items_common_fixed_8x16_font.h"
 #include "common_variable_8x16_sprite_font.h"
 
@@ -575,23 +577,105 @@ void key_cap(int x, int y, int width, int height, char label, bool selected, uin
     text(font::digits, label_text, x + width / 2, y + (height - 8) / 2, ink, no_shadow, 1, align::center);
 }
 
+namespace
+{
+    // Indeterminate bar animation while the CPU is busy (Argon2 blocks the main loop).
+    // Each 2 px column of the bar interior has its own palette entries (one for the 2 shine rows,
+    // one for the 4 body rows). A VCOUNT interrupt at the start of V-Blank recolors those entries
+    // every frame, so the block slides without redrawing anything ("palette cycling").
+    constexpr int busy_box_x = 24, busy_box_y = 52, busy_box_width = 192, busy_box_height = 62;
+    constexpr int busy_bar_x = busy_box_x + 16;
+    constexpr int busy_bar_y = busy_box_y + 28;
+    constexpr int busy_bar_width = busy_box_width - 32;
+    constexpr int busy_columns = (busy_bar_width - 4) / 2;          // interior minus the rounded ends
+    constexpr int busy_block_columns = busy_columns * 3 / 10;       // 30% of the width
+    constexpr int busy_shine_index = 64;
+    constexpr int busy_body_index = busy_shine_index + busy_columns;
+    static_assert(busy_body_index + busy_columns <= 256, "Busy bar needs more palette entries than exist");
+
+    constexpr uint16_t raw_color(uint32_t rgb)
+    {
+        return uint16_t((((rgb >> 16) & 0xFF) >> 3) | ((((rgb >> 8) & 0xFF) >> 3) << 5) | (((rgb & 0xFF) >> 3) << 10));
+    }
+
+    constexpr uint16_t busy_ink = raw_color(0x404858);
+    constexpr uint16_t busy_fill = raw_color(0xf8c838);
+    constexpr uint16_t busy_shine = raw_color(0xf8e8a0);
+
+    volatile int busy_position = 0;
+    volatile int busy_direction = 1;
+    volatile int busy_frame = 0;
+
+    void busy_paint()
+    {
+        auto palette_ram = reinterpret_cast<volatile uint16_t*>(0x05000000);
+        int position = busy_position;
+
+        for(int column = 0; column < busy_columns; ++column)
+        {
+            bool in_block = column >= position && column < position + busy_block_columns;
+            palette_ram[busy_shine_index + column] = in_block ? busy_shine : busy_ink;
+            palette_ram[busy_body_index + column] = in_block ? busy_fill : busy_ink;
+        }
+    }
+
+    // 2 px column per 2 frames = 1 px per frame on average; reverses at each end.
+    void busy_isr()
+    {
+        int frame = busy_frame + 1;
+        busy_frame = frame;
+
+        if(frame % 2 == 0)
+        {
+            int position = busy_position + busy_direction;
+
+            if(position <= 0 || position >= busy_columns - busy_block_columns)
+            {
+                busy_direction = -busy_direction;
+            }
+
+            busy_position = position;
+        }
+
+        busy_paint();
+    }
+}
+
 void busy_box(const bn::string_view& title, const bn::string_view& subtitle)
 {
-    constexpr int x = 24, y = 52, width = 192, height = 62;
-    panel(x, y, width, height, white, true);
-    text(font::body, title, screen_width / 2, y + 7, ink, light_shadow, 2, align::center);
+    panel(busy_box_x, busy_box_y, busy_box_width, busy_box_height, white, true);
+    text(font::body, title, screen_width / 2, busy_box_y + 7, ink, light_shadow, 2, align::center);
 
-    // Indeterminate bar, drawn once with the block in the middle.
-    int bar_x = x + 16;
-    int bar_width = width - 32;
-    round_fill(bar_x, y + 28, bar_width, 8, 4, ink);
+    round_fill(busy_bar_x, busy_bar_y, busy_bar_width, 8, 4, ink);
 
-    int block_width = bar_width * 3 / 10;
-    int block_x = bar_x + (bar_width - block_width) / 2;
-    round_fill(block_x, y + 29, block_width, 6, 3, selection);
-    fill(block_x + 2, y + 29, block_width - 4, 2, selection_shine);
+    for(int column = 0; column < busy_columns; ++column)
+    {
+        int column_x = busy_bar_x + 2 + column * 2;
+        fill(column_x, busy_bar_y + 1, 2, 2, uint8_t(busy_shine_index + column));
+        fill(column_x, busy_bar_y + 3, 2, 4, uint8_t(busy_body_index + column));
+    }
 
-    text(font::body, subtitle, screen_width / 2, y + 44, secondary, no_shadow, 1, align::center);
+    busy_position = (busy_columns - busy_block_columns) / 2;
+    busy_direction = 1;
+    busy_frame = 0;
+    busy_paint();
+
+    text(font::body, subtitle, screen_width / 2, busy_box_y + 44, secondary, no_shadow, 1, align::center);
+}
+
+void busy_animation_start()
+{
+    bn::hw::irq::set_isr(bn::hw::irq::id::VCOUNT, busy_isr);
+    // VCOUNT target = first line of V-Blank (no tearing): DISPSTAT bits 8-15.
+    auto dispstat = reinterpret_cast<volatile uint16_t*>(0x04000004);
+    *dispstat = uint16_t((*dispstat & 0x00FF) | (160 << 8));
+    bn::hw::irq::enable(bn::hw::irq::id::VCOUNT);
+}
+
+void busy_animation_stop()
+{
+    bn::hw::irq::disable(bn::hw::irq::id::VCOUNT);
+    bn::hw::irq::set_isr(bn::hw::irq::id::VCOUNT, nullptr);
 }
 
 uint8_t badge_color(const char* name)

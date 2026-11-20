@@ -16,15 +16,30 @@ namespace
 {
     constexpr int blink_frames = 30;
 
-    // Header + "Unlocking..." style box, made visible before slow work (Argon2) starts.
-    void show_busy(const char* title)
+    // Header + "Unlocking..." style box for slow work (Argon2). The box is put on screen first,
+    // then its bar animates from an interrupt until this object goes out of scope.
+    class busy_screen
     {
-        ui::background();
-        ui::header("AuthBoy");
-        ui::busy_box(title, "This takes a few seconds");
-        frame_update();
-        frame_update();
-    }
+
+    public:
+        explicit busy_screen(const char* title)
+        {
+            ui::background();
+            ui::header("AuthBoy");
+            ui::busy_box(title, "This takes a few seconds");
+            frame_update();
+            frame_update();
+            ui::busy_animation_start();
+        }
+
+        ~busy_screen()
+        {
+            ui::busy_animation_stop();
+        }
+
+        busy_screen(const busy_screen&) = delete;
+        busy_screen& operator=(const busy_screen&) = delete;
+    };
 
     // "(A) label" followed by the blinking "next" arrow, right-aligned to right_x.
     void draw_continue(int right_x, int y, const char* label, bool arrow_visible)
@@ -168,8 +183,12 @@ namespace
                 continue;
             }
 
-            show_busy("Checking PIN...");
-            pin_result result = verify_pin(pin.data(), pin.size());
+            pin_result result;
+
+            {
+                busy_screen busy("Checking PIN...");
+                result = verify_pin(pin.data(), pin.size());
+            }
 
             if(result == pin_result::ok)
             {
@@ -230,8 +249,12 @@ namespace
             break;
         }
 
-        show_busy("Encrypting...");
-        pin_result result = set_pin(pin.data(), pin.size(), accounts);
+        pin_result result;
+
+        {
+            busy_screen busy("Encrypting...");
+            result = set_pin(pin.data(), pin.size(), accounts);
+        }
         wipe_string(pin);
         wipe_string(confirmation);
 
@@ -279,8 +302,12 @@ void run_unlock_scene(account_list& accounts)
             continue;
         }
 
-        show_busy("Unlocking...");
-        pin_result result = unlock_accounts(pin.data(), pin.size(), accounts);
+        pin_result result;
+
+        {
+            busy_screen busy("Unlocking...");
+            result = unlock_accounts(pin.data(), pin.size(), accounts);
+        }
 
         if(result == pin_result::wrong_pin)
         {
