@@ -150,6 +150,20 @@ namespace
         return u >= 32 && u <= 126 ? u - 32 : '?' - 32;
     }
 
+    // Butano font images have no glyph for the space: their first tile is '!'.
+    // Returns nullptr for characters with nothing to draw.
+    const bn::tile* glyph_tile(font text_font, char c)
+    {
+        int index = glyph_index(c);
+
+        if(index == 0)
+        {
+            return nullptr;
+        }
+
+        return &(text_font == font::digits ? digits_tiles : body_tiles)[index - 1];
+    }
+
     int advance(font text_font, char c, int scale)
     {
         if(text_font == font::digits)
@@ -157,13 +171,20 @@ namespace
             return digits_advance * scale;
         }
 
-        return (common::variable_8x8_sprite_font_character_widths[glyph_index(c)] - 1) * scale;
+        return common::variable_8x8_sprite_font_character_widths[glyph_index(c)] * scale;
     }
 
     void draw_glyph(font text_font, char c, int x, int y, uint8_t color, int scale)
     {
+        const bn::tile* glyph_ptr = glyph_tile(text_font, c);
+
+        if(! glyph_ptr)
+        {
+            return;
+        }
+
+        const bn::tile& glyph = *glyph_ptr;
         bool digits = text_font == font::digits;
-        const bn::tile& glyph = (digits ? digits_tiles : body_tiles)[glyph_index(c)];
         int fill_index = digits ? digits_fill_index : body_fill_index;
         int column_offset = digits ? 1 : 0;    // fixed font glyphs start one column in
 

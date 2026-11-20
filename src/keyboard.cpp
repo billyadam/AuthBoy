@@ -181,9 +181,15 @@ namespace
             {
                 for(int c = 0; c < _info.columns; ++c)
                 {
-                    draw_key(r, c, r == row && c == column);
+                    if(r != row || c != column)
+                    {
+                        draw_key(r, c, false);
+                    }
                 }
             }
+
+            // Last, so the neighbours don't paint over its outline.
+            draw_key(row, column, true);
         }
 
         void draw_key(int r, int c, bool selected)
@@ -284,15 +290,18 @@ namespace
 
         void draw_name_text()
         {
+            bn::string_view text(_value.data(), _value.size());
+
+            // 2x like the design; very wide names (e.g. 16 x "M") fall back to 1x so they fit.
+            int scale = ui::text_width(ui::font::body, text, 2) + 12 <= input_width - 12 ? 2 : 1;
             int x = input_x + 6;
-            int y = input_y + (_info.input_height - 16) / 2;
-            ui::text(ui::font::body, bn::string_view(_value.data(), _value.size()), x, y, ui::ink,
-                     ui::input_shadow, 2);
+            int y = input_y + (_info.input_height - 8 * scale) / 2;
+            ui::text(ui::font::body, text, x, y, ui::ink, ui::input_shadow, scale);
 
             if(caret_visible)
             {
-                int width = ui::text_width(ui::font::body, bn::string_view(_value.data(), _value.size()), 2);
-                ui::fill(x + width + (_value.empty() ? 0 : 3), y + 1, 2, 14, ui::red);
+                int width = ui::text_width(ui::font::body, text, scale);
+                ui::fill(x + width + (_value.empty() ? 0 : 1 + scale), y + 1, 2, 8 * scale - 2, ui::red);
             }
         }
 
