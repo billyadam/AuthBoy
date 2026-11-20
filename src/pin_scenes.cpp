@@ -100,7 +100,8 @@ namespace
 
         constexpr int x = 4, y = 100, width = 232, height = 56;
         ui::panel(x, y, width, height, ui::white, true);
-        ui::text(ui::font::body, "Set a PIN to encrypt your accounts", x + 6, y + 10, ui::ink, ui::light_shadow);
+        ui::text(ui::font::body, "Set a password to encrypt", x + 6, y + 10, ui::ink, ui::light_shadow);
+        ui::text(ui::font::body, "your accounts", x + 6, y + 22, ui::ink, ui::light_shadow);
         draw_continue(x + width - 8, y + 34, "continue", true);
         frame_update();
 
@@ -157,7 +158,7 @@ namespace
         {
             wipe_string(pin);
 
-            if(! run_keyboard(keyboard_layout::pin, "Current PIN", pin, vault::max_pin_chars, message))
+            if(! run_keyboard(keyboard_layout::pin, "Current password", pin, vault::max_pin_chars, message))
             {
                 return false;
             }
@@ -168,7 +169,7 @@ namespace
                 continue;
             }
 
-            show_busy("Checking PIN...");
+            show_busy("Checking...");
             pin_result result = verify_pin(pin.data(), pin.size());
 
             if(result == pin_result::ok)
@@ -177,7 +178,7 @@ namespace
                 return true;
             }
 
-            message = result == pin_result::wrong_pin ? "Wrong PIN" : "Not enough memory";
+            message = result == pin_result::wrong_pin ? "Wrong password" : "Not enough memory";
         }
     }
 
@@ -194,11 +195,11 @@ namespace
             wipe_string(pin);
             wipe_string(confirmation);
 
-            if(! run_keyboard(keyboard_layout::pin, "New PIN", pin, vault::max_pin_chars, message))
+            if(! run_keyboard(keyboard_layout::pin, "New password", pin, vault::max_pin_chars, message))
             {
                 if(required)
                 {
-                    message = "A PIN is required";
+                    message = "A password is required";
                     continue;
                 }
 
@@ -212,9 +213,9 @@ namespace
             }
 
             const char* confirm_message = pin.size() < vault::recommended_pin_chars ?
-                        "Short PIN: 8+ is much harder to crack" : nullptr;
+                        "Short password: 8+ is much safer" : nullptr;
 
-            if(! run_keyboard(keyboard_layout::pin, "Confirm PIN", confirmation, vault::max_pin_chars,
+            if(! run_keyboard(keyboard_layout::pin, "Confirm password", confirmation, vault::max_pin_chars,
                               confirm_message))
             {
                 message = "6-16 characters, 8+ recommended";
@@ -223,7 +224,7 @@ namespace
 
             if(! strings_equal(pin, confirmation))
             {
-                message = "PINs didn't match, try again";
+                message = "Passwords didn't match, try again";
                 continue;
             }
 
@@ -237,13 +238,14 @@ namespace
 
         if(result != pin_result::ok)
         {
-            message_screen("Couldn't set the PIN", "Not enough memory", nullptr, "OK");
+            message_screen("Couldn't set the password", "Not enough memory", nullptr, "OK");
             return false;
         }
 
         bn::string<48> timing = "Unlocking takes about ";
         append_seconds(timing, last_kdf_milliseconds());
-        message_screen("PIN set, accounts encrypted", timing.c_str(), "Forgotten PINs can't be recovered!", "OK");
+        message_screen("Password set, accounts encrypted", timing.c_str(), "Lost passwords can't be recovered!",
+                       "OK");
         return true;
     }
 }
@@ -267,7 +269,7 @@ void run_unlock_scene(account_list& accounts)
     {
         wipe_string(pin);
 
-        if(! run_keyboard(keyboard_layout::pin, "Enter PIN", pin, vault::max_pin_chars, message))
+        if(! run_keyboard(keyboard_layout::pin, "Enter password", pin, vault::max_pin_chars, message))
         {
             message = nullptr;
             continue;
@@ -284,7 +286,7 @@ void run_unlock_scene(account_list& accounts)
 
         if(result == pin_result::wrong_pin)
         {
-            message = "Wrong PIN";
+            message = "Wrong password";
         }
         else if(result == pin_result::out_of_memory)
         {
@@ -305,7 +307,7 @@ void run_settings_menu(account_list& accounts)
         option_count
     };
 
-    constexpr const char* option_names[option_count] = { "Sort", "Lock now", "Change PIN" };
+    constexpr const char* option_names[option_count] = { "Sort", "Lock now", "Change password" };
     constexpr ui::hint footer[] = { { "A", "choose" }, { "B", "back" } };
 
     // Screen 05 geometry
@@ -336,7 +338,7 @@ void run_settings_menu(account_list& accounts)
     ui::panel(4, 28, 232, 18, ui::info, false);
     ui::round_fill(8, 33, 8, 8, 4, ui::green);
     ui::fill(10, 34, 4, 2, ui::green_shine);
-    ui::text(ui::font::body, "PIN lock on: accounts encrypted", 18, 33, ui::ink);
+    ui::text(ui::font::body, "Password on: accounts encrypted", 18, 33, ui::ink);
 
     ui::panel(box_x, box_y, box_width, box_height, ui::white, true);
 

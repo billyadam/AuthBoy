@@ -130,6 +130,12 @@ namespace
 
         void draw_counter()
         {
+            // Password screens show the count with their 16 dots; the long titles need the room.
+            if(_layout == keyboard_layout::pin)
+            {
+                return;
+            }
+
             ui::header_band_clear(180, 60);
 
             bn::string<16> counter;
