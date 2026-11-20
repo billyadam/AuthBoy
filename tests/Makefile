@@ -1,0 +1,23 @@
+# Builds and runs the portable code's tests on the host PC (not the GBA).
+CXX      ?= g++
+CC       ?= gcc
+CXXFLAGS := -std=c++20 -O2 -Wall -Wextra -Werror -I../include -I../third_party/monocypher
+CFLAGS   := -std=c99 -O2
+
+run: totp_host_test vault_host_test
+	./totp_host_test
+	./vault_host_test
+
+totp_host_test: totp_host_test.cpp ../src/totp.cpp ../include/totp.h
+	$(CXX) $(CXXFLAGS) totp_host_test.cpp ../src/totp.cpp -o $@
+
+monocypher.o: ../third_party/monocypher/monocypher.c ../third_party/monocypher/monocypher.h
+	$(CC) $(CFLAGS) -c ../third_party/monocypher/monocypher.c -o $@
+
+vault_host_test: vault_host_test.cpp ../src/vault.cpp ../include/vault.h monocypher.o
+	$(CXX) $(CXXFLAGS) vault_host_test.cpp ../src/vault.cpp monocypher.o -o $@
+
+clean:
+	rm -f totp_host_test vault_host_test monocypher.o
+
+.PHONY: run clean
