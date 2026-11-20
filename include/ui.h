@@ -56,8 +56,8 @@ namespace ui
 
     enum class font : uint8_t
     {
-        body,       // Butano common variable 8x8 font (stands in for "font_body8")
-        digits,     // Butano common fixed 8x8 font, 7 px advance (stands in for "font_digits8")
+        body,       // Butano common variable 8x16 font glyphs (stands in for "font_body8")
+        digits,     // Butano common fixed 8x16 font glyphs, 7 px advance (stands in for "font_digits8")
     };
 
     enum class align : uint8_t

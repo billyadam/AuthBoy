@@ -56,7 +56,7 @@ namespace
 
         for(int i = 0; i < line_count; ++i)
         {
-            ui::text(ui::font::body, lines[i], x + 8, y + 10 + i * 12, ui::ink, ui::light_shadow);
+            ui::text(ui::font::body, lines[i], x + 6, y + 10 + i * 12, ui::ink, ui::light_shadow);
         }
 
         draw_continue(x + width - 8, button_y, a_label, true);
@@ -96,11 +96,11 @@ namespace
         ui::fill(0, 64, 240, 4, ui::hero_accent);
         ui::fill(0, 76, 240, 2, ui::header_shadow);
         ui::text(ui::font::body, "Welcome to", 120, 18, ui::header_subtext, ui::no_shadow, 1, ui::align::center);
-        ui::text(ui::font::body, "AuthBoy", 120, 30, ui::white, ui::header_shadow, 4, ui::align::center, 2);
+        ui::text(ui::font::body, "AuthBoy", 120, 28, ui::white, ui::header_shadow, 4, ui::align::center, 2);
 
         constexpr int x = 4, y = 100, width = 232, height = 56;
         ui::panel(x, y, width, height, ui::white, true);
-        ui::text(ui::font::body, "Set a PIN to encrypt your accounts", x + 8, y + 10, ui::ink, ui::light_shadow);
+        ui::text(ui::font::body, "Set a PIN to encrypt your accounts", x + 6, y + 10, ui::ink, ui::light_shadow);
         draw_continue(x + width - 8, y + 34, "continue", true);
         frame_update();
 
@@ -336,7 +336,7 @@ void run_settings_menu(account_list& accounts)
     ui::panel(4, 28, 232, 18, ui::info, false);
     ui::round_fill(8, 33, 8, 8, 4, ui::green);
     ui::fill(10, 34, 4, 2, ui::green_shine);
-    ui::text(ui::font::body, "PIN lock on: accounts are encrypted", 20, 33, ui::ink);
+    ui::text(ui::font::body, "PIN lock on: accounts encrypted", 18, 33, ui::ink);
 
     ui::panel(box_x, box_y, box_width, box_height, ui::white, true);
 

@@ -11,8 +11,8 @@
 #include "bn_regular_bg_map_ptr.h"
 #include "bn_regular_bg_tiles_ptr.h"
 
-#include "bn_sprite_items_common_fixed_8x8_font.h"
-#include "common_variable_8x8_sprite_font.h"
+#include "bn_sprite_items_common_fixed_8x16_font.h"
+#include "common_variable_8x16_sprite_font.h"
 
 namespace ui
 {
@@ -150,9 +150,15 @@ namespace
         return u >= 32 && u <= 126 ? u - 32 : '?' - 32;
     }
 
-    // Butano font images have no glyph for the space: their first tile is '!'.
+    // Glyphs come from Butano's 8x16 fonts (bold lowercase with descenders). Each glyph is two
+    // tiles (top and bottom half). Caps sit on cell rows 5-11 and descenders reach row 13, so we
+    // draw rows 5-13: caps become the top 7 px of the 8 px line, descenders hang 2 px below it.
+    constexpr int glyph_first_row = 5;
+    constexpr int glyph_rows = 9;
+
+    // Butano font images have no glyph for the space: their first glyph is '!'.
     // Returns nullptr for characters with nothing to draw.
-    const bn::tile* glyph_tile(font text_font, char c)
+    const bn::tile* glyph_tiles(font text_font, char c)
     {
         int index = glyph_index(c);
 
@@ -161,7 +167,7 @@ namespace
             return nullptr;
         }
 
-        return &(text_font == font::digits ? digits_tiles : body_tiles)[index - 1];
+        return &(text_font == font::digits ? digits_tiles : body_tiles)[(index - 1) * 2];
     }
 
     int advance(font text_font, char c, int scale)
@@ -171,26 +177,26 @@ namespace
             return digits_advance * scale;
         }
 
-        return common::variable_8x8_sprite_font_character_widths[glyph_index(c)] * scale;
+        return common::variable_8x16_sprite_font_character_widths[glyph_index(c)] * scale;
     }
 
     void draw_glyph(font text_font, char c, int x, int y, uint8_t color, int scale)
     {
-        const bn::tile* glyph_ptr = glyph_tile(text_font, c);
+        const bn::tile* glyph = glyph_tiles(text_font, c);
 
-        if(! glyph_ptr)
+        if(! glyph)
         {
             return;
         }
 
-        const bn::tile& glyph = *glyph_ptr;
         bool digits = text_font == font::digits;
         int fill_index = digits ? digits_fill_index : body_fill_index;
         int column_offset = digits ? 1 : 0;    // fixed font glyphs start one column in
 
-        for(int row = 0; row < 8; ++row)
+        for(int row = 0; row < glyph_rows; ++row)
         {
-            uint32_t bits = glyph.data[row];
+            int cell_row = glyph_first_row + row;
+            uint32_t bits = glyph[cell_row / 8].data[cell_row % 8];
 
             if(! bits)
             {
@@ -222,8 +228,8 @@ void init()
     canvas = static_cast<uint8_t*>(bn::memory::ewram_alloc(tile_count * tile_bytes));
     BN_ASSERT(canvas, "Not enough EWRAM for the UI canvas");
 
-    body_tiles = bn::sprite_items::common_variable_8x8_font.tiles_item().tiles_ref().data();
-    digits_tiles = bn::sprite_items::common_fixed_8x8_font.tiles_item().tiles_ref().data();
+    body_tiles = bn::sprite_items::common_variable_8x16_font.tiles_item().tiles_ref().data();
+    digits_tiles = bn::sprite_items::common_fixed_8x16_font.tiles_item().tiles_ref().data();
 
     // 8bpp tiles are counted in 4bpp units by Butano. No offset: the map indexes them directly.
     bg_tiles = bn::regular_bg_tiles_ptr::allocate(tile_count * 2, bn::bpp_mode::BPP_8, false);
@@ -371,7 +377,7 @@ void text(font text_font, const bn::string_view& text, int x, int y, uint8_t col
         cx += advance(text_font, c, scale);
     }
 
-    mark_dirty(x - scale, y - scale, width + 2 * scale + shadow_offset + 1, 8 * scale + shadow_offset + 1);
+    mark_dirty(x - scale, y - scale, width + 2 * scale + shadow_offset + 1, 10 * scale + shadow_offset + 1);
 }
 
 bn::string_view fit_text(font text_font, const bn::string_view& text, int max_width, int scale, bool& truncated)

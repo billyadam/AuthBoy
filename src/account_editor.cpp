@@ -79,7 +79,7 @@ namespace
             }
             else if(remainder == 1 || remainder == 3 || remainder == 6)
             {
-                message = "Wrong length: check for a missing char";
+                message = "Wrong length: a char is missing?";
             }
             else
             {

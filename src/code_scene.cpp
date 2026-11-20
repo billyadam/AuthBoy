@@ -227,8 +227,18 @@ namespace
             append_padded(date_text, civil.month, 2);
             date_text += '-';
             append_padded(date_text, civil.day, 2);
-            date_text += ' ';
-            append_utc_offset(date_text, utc_offset_minutes);
+            date_text += " UTC";
+
+            // Short form ("+7", "+5:30") so the date doesn't run into the 2x title.
+            int abs_offset = utc_offset_minutes < 0 ? -utc_offset_minutes : utc_offset_minutes;
+            date_text += utc_offset_minutes < 0 ? '-' : '+';
+            append_padded(date_text, abs_offset / 60, 1);
+
+            if(abs_offset % 60)
+            {
+                date_text += ':';
+                append_padded(date_text, abs_offset % 60, 2);
+            }
 
             ui::text(ui::font::digits, time_text, 233, 3, ui::white, ui::no_shadow, 1, ui::align::right);
             ui::text(ui::font::digits, date_text, 233, 12, ui::header_subtext, ui::no_shadow, 1, ui::align::right);
