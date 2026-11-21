@@ -58,6 +58,65 @@ namespace ui
         classic_key = 42,       // #2850aa key cursor fill
         classic_key_edge = 43,  // #6ea0ff key cursor border
         black = qr_dark,        // Classic text outline
+
+        // 44..: Pocket LCD
+        lcd_screen = 44,          // #e8f0d0
+        lcd_light = 45,           // #a8c890
+        lcd_mid = 46,             // #507850
+        lcd_dark = 47,            // #183020
+        // Phosphor, then the same colors faded for the modal backdrop
+        amber_bg = 48,            // #081008
+        amber_track = 49,         // #302008
+        amber_frame = 50,         // #806020
+        amber_dim = 51,           // #a07828
+        amber_text = 52,          // #f8b030
+        amber_bg_faded = 53,      // #081008
+        amber_track_faded = 54,   // #101008
+        amber_frame_faded = 55,   // #202010
+        amber_dim_faded = 56,     // #282810
+        amber_text_faded = 57,    // #403010
+        // Net Link, then the same colors (and the badges) faded for the modal backdrop
+        net_text = 58,            // #f8f8f8
+        net_deep = 59,            // #001830
+        net_bg = 60,              // #082050
+        net_grid = 61,            // #103878
+        net_chip_dark = 62,       // #083878
+        net_chip = 63,            // #0850a0
+        net_chip_hi = 64,         // #2878d0
+        net_selected = 65,        // #1878e0
+        net_cyan = 66,            // #38d8f8
+        net_shine = 67,           // #c0f8f8
+        net_green = 68,           // #78f858
+        net_secondary = 69,       // #78b8e8
+        net_tag = 70,             // #f89830
+        net_warn = 71,            // #f8d838
+        net_danger = 72,          // #f85838
+        net_danger_text = 73,     // #f89878
+        net_text_faded = 74,      // #586878
+        net_deep_faded = 75,      // #001830
+        net_bg_faded = 76,        // #001838
+        net_grid_faded = 77,      // #082048
+        net_chip_dark_faded = 78, // #002048
+        net_chip_faded = 79,      // #002858
+        net_chip_hi_faded = 80,   // #103868
+        net_selected_faded = 81,  // #083870
+        net_cyan_faded = 82,      // #105878
+        net_shine_faded = 83,     // #406878
+        net_green_faded = 84,     // #286840
+        net_secondary_faded = 85, // #285070
+        net_tag_faded = 86,       // #584830
+        net_warn_faded = 87,      // #585830
+        net_danger_faded = 88,    // #583030
+        net_danger_text_faded = 89,// #584848
+        badge_0_net_faded = 90,   // #103870
+        badge_1_net_faded = 91,   // #303070
+        badge_2_net_faded = 92,   // #104878
+        badge_3_net_faded = 93,   // #503830
+        badge_4_net_faded = 94,   // #502830
+        badge_5_net_faded = 95,   // #204838
+        badge_6_net_faded = 96,   // #483058
+        badge_7_net_faded = 97,   // #105058
+        palette_size = 98,
     };
 
     constexpr int no_shadow = -1;
@@ -153,6 +212,21 @@ namespace ui
     // centered in [area_top, area_top + area_height) using the biggest whole-pixel module size
     // that fits (max_module px at most). Returns the side in pixels.
     int qr_code(const uint8_t* qrcode, int x, int area_top, int area_height, int max_module = 4);
+
+    // Patterned lines: on pixels drawn every period pixels, starting at x / y.
+    void pattern_hline(int x, int y, int width, int on, int period, uint8_t color);
+    void pattern_vline(int x, int y, int height, int on, int period, uint8_t color);
+
+    // Modal backdrops: fade = every theme color in the area replaced by its faded version;
+    // checker = every other pixel (x + y odd) set to color.
+    enum class fade_style : uint8_t
+    {
+        phosphor,
+        net_link,
+    };
+
+    void fade(int x, int y, int width, int height, fade_style style);
+    void checker(int x, int y, int width, int height, uint8_t color);
 
     // ---- Classic theme text ----
     // Butano's 8x16 sprite fonts drawn whole, as the original sprite text was: white with the

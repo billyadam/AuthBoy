@@ -206,7 +206,7 @@ namespace
 
         bn::string<48> timing = "Unlocking takes about ";
         append_seconds(timing, last_kdf_milliseconds());
-        message_screen("Password set, accounts encrypted", timing.c_str(), "Lost passwords can't be recovered!",
+        message_screen("Password set, accounts encrypted", timing.c_str(), "Passwords can't be recovered!",
                        "OK");
         return true;
     }
@@ -332,7 +332,7 @@ void run_settings_menu(account_list& accounts)
                 break;
 
             case settings_option_theme:
-                accounts.theme = ui_theme((int(accounts.theme) + 1) % ui_theme_count);
+                accounts.theme = next_theme(accounts.theme);
                 set_theme(accounts.theme);
                 save_accounts(accounts);
                 state.frame_counter = 0;

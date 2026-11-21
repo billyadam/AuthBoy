@@ -5,6 +5,8 @@
 // pin_scenes.cpp and is shared. How each screen looks is a theme's painters:
 //   fg_*.cpp      Field Guide (the default)
 //   classic_*.cpp Classic (the original look)
+//   skin_*.cpp    Net Link, Pocket LCD and Phosphor: Field Guide's layout drawn by a skin
+//                 (include/skin.h; net_link.cpp, pocket_lcd.cpp, phosphor.cpp)
 // The logic tells the active theme's painter what changed; the painter redraws what it needs.
 
 #include "bn_string.h"
@@ -235,7 +237,11 @@ namespace app
     ui_theme current_theme();
     const theme_painters& painters();
 
-    const char* theme_name(ui_theme theme);     // "Field Guide", "Classic"
+    const char* theme_name(ui_theme theme);         // "Field Guide", "Classic", ...
+    const char* theme_short_name(ui_theme theme);   // "FIELD", "CLASSIC", ... (Settings value pills)
+
+    // The theme after this one in Settings: Classic, Field Guide, Net Link, Pocket LCD, Phosphor.
+    ui_theme next_theme(ui_theme theme);
 
     namespace field_guide
     {
@@ -245,6 +251,27 @@ namespace app
     }
 
     namespace classic
+    {
+        home_painter& home();
+        keyboard_painter& keyboard();
+        screen_painter& screens();
+    }
+
+    namespace net_link
+    {
+        home_painter& home();
+        keyboard_painter& keyboard();
+        screen_painter& screens();
+    }
+
+    namespace pocket_lcd
+    {
+        home_painter& home();
+        keyboard_painter& keyboard();
+        screen_painter& screens();
+    }
+
+    namespace phosphor
     {
         home_painter& home();
         keyboard_painter& keyboard();

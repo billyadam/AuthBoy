@@ -12,6 +12,7 @@
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
+#include <initializer_list>
 
 // ---- entropy.h stand-ins (deterministic, but never repeating) ----
 namespace app
@@ -267,6 +268,26 @@ int main()
 
     app::lock_accounts(list);
     check(list.theme == app::ui_theme::classic, "theme: kept when locking");
+    app::unlock_accounts("HUNTER22", 8, list);
+
+    bool all_themes = true;
+
+    for(app::ui_theme theme : { app::ui_theme::net_link, app::ui_theme::pocket_lcd, app::ui_theme::phosphor,
+                                app::ui_theme::field_guide })
+    {
+        list.theme = theme;
+        app::save_accounts(list);
+        app::load_accounts(list);
+        all_themes = all_themes && list.theme == theme;
+        app::unlock_accounts("HUNTER22", 8, list);
+    }
+
+    check(all_themes, "theme: Net Link, Pocket LCD, Phosphor, Field Guide round trip");
+
+    list.theme = app::ui_theme(app::ui_theme_count);     // the first number no build knows yet
+    app::save_accounts(list);
+    app::load_accounts(list);
+    check(list.theme == app::ui_theme::field_guide, "theme: first unknown number -> Field Guide");
     app::unlock_accounts("HUNTER22", 8, list);
 
     // A theme number from a future build (sealed normally): Field Guide here, accounts still open.

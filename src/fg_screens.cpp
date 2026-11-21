@@ -46,12 +46,6 @@ namespace
         return { 4, y, 232, height, y + height - 18 };
     }
 
-    // Uppercase value shown in a pill.
-    const char* theme_pill(ui_theme theme)
-    {
-        return theme == ui_theme::classic ? "CLASSIC" : "FIELD GUIDE";
-    }
-
     class screen_painter_impl final : public screen_painter
     {
 
@@ -188,7 +182,7 @@ namespace
             }
             else if(index == settings_option_theme)
             {
-                value = theme_pill(state.accounts.theme);
+                value = theme_short_name(state.accounts.theme);
             }
 
             if(value)

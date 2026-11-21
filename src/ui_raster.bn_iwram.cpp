@@ -165,4 +165,31 @@ BN_CODE_IWRAM void glyph_cell(uint8_t* canvas, const uint32_t* cell_rows, int x,
     }
 }
 
+BN_CODE_IWRAM void remap(uint8_t* canvas, int x0, int y0, int x1, int y1, const uint8_t* table)
+{
+    for(int y = y0; y < y1; ++y)
+    {
+        uint8_t* row = canvas + (y >> 3) * tile_row_bytes + ((y & 7) << 3);
+
+        for(int x = x0; x < x1; ++x)
+        {
+            uint8_t& pixel = row[(x >> 3) * tile_bytes + (x & 7)];
+            pixel = table[pixel];
+        }
+    }
+}
+
+BN_CODE_IWRAM void checker(uint8_t* canvas, int x0, int y0, int x1, int y1, uint8_t color)
+{
+    for(int y = y0; y < y1; ++y)
+    {
+        uint8_t* row = canvas + (y >> 3) * tile_row_bytes + ((y & 7) << 3);
+
+        for(int x = x0 + ((x0 + y + 1) & 1); x < x1; x += 2)
+        {
+            row[(x >> 3) * tile_bytes + (x & 7)] = color;
+        }
+    }
+}
+
 }

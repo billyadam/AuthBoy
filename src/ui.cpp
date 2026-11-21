@@ -34,7 +34,7 @@ namespace
         return bn::color(int((rgb >> 16) & 0xFF) >> 3, int((rgb >> 8) & 0xFF) >> 3, int(rgb & 0xFF) >> 3);
     }
 
-    constexpr bn::color palette_colors[64] = {
+    constexpr bn::color palette_colors[112] = {
         hex(0xf8f0d0),  // 0 backdrop (never visible: the canvas covers the screen)
         hex(0xf8f8f8), hex(0x404858), hex(0xc8d0d8), hex(0xd0e8f8), hex(0xe0ecf8), hex(0xf8f0d0), hex(0xf0e0b0),
         hex(0xd83828), hex(0xf87858), hex(0x982010), hex(0xf8c838), hex(0xc87818), hex(0x48d058), hex(0x6878a0),
@@ -48,7 +48,47 @@ namespace
         hex(0x38b0a0),
         // 40..43: Classic theme
         hex(0x101840), hex(0x223678), hex(0x2850aa), hex(0x6ea0ff),
+        // 44..97: Pocket LCD, Phosphor (+ faded), Net Link (+ faded, faded badges)
+        hex(0xe8f0d0), hex(0xa8c890), hex(0x507850), hex(0x183020), hex(0x081008), hex(0x302008), hex(0x806020),
+        hex(0xa07828), hex(0xf8b030), hex(0x081008), hex(0x101008), hex(0x202010), hex(0x282810), hex(0x403010),
+        hex(0xf8f8f8), hex(0x001830), hex(0x082050), hex(0x103878), hex(0x083878), hex(0x0850a0), hex(0x2878d0),
+        hex(0x1878e0), hex(0x38d8f8), hex(0xc0f8f8), hex(0x78f858), hex(0x78b8e8), hex(0xf89830), hex(0xf8d838),
+        hex(0xf85838), hex(0xf89878), hex(0x586878), hex(0x001830), hex(0x001838), hex(0x082048), hex(0x002048),
+        hex(0x002858), hex(0x103868), hex(0x083870), hex(0x105878), hex(0x406878), hex(0x286840), hex(0x285070),
+        hex(0x584830), hex(0x585830), hex(0x583030), hex(0x584848), hex(0x103870), hex(0x303070), hex(0x104878),
+        hex(0x503830), hex(0x502830), hex(0x204838), hex(0x483058), hex(0x105058),
     };
+
+    static_assert(palette_size <= 112);
+
+    // Color index -> faded color index, for the modal backdrops.
+    BN_DATA_EWRAM_BSS uint8_t fade_tables[2][256];
+
+    void build_fade_tables()
+    {
+        for(int table = 0; table < 2; ++table)
+        {
+            for(int i = 0; i < 256; ++i)
+            {
+                fade_tables[table][i] = uint8_t(i);
+            }
+        }
+
+        for(int i = 0; i < amber_bg_faded - amber_bg; ++i)
+        {
+            fade_tables[0][amber_bg + i] = uint8_t(amber_bg_faded + i);
+        }
+
+        for(int i = 0; i < net_text_faded - net_text; ++i)
+        {
+            fade_tables[1][net_text + i] = uint8_t(net_text_faded + i);
+        }
+
+        for(int i = 0; i < 8; ++i)
+        {
+            fade_tables[1][badge_0 + i] = uint8_t(badge_0_net_faded + i);
+        }
+    }
 
     constexpr bn::bg_palette_item palette_item(palette_colors, bn::bpp_mode::BPP_8);
 
@@ -452,6 +492,7 @@ void init()
     build_glyph_masks(1, digits_tiles, digits_fill_index, 1);   // fixed font glyphs start one column in
     build_code12_masks();
     build_derived_fonts();
+    build_fade_tables();
 
     // 8bpp tiles are counted in 4bpp units by Butano. No offset: the map indexes them directly.
     bg_tiles = bn::regular_bg_tiles_ptr::allocate(tile_count * 2, bn::bpp_mode::BPP_8, false);
@@ -913,6 +954,54 @@ void classic_text(classic_font text_font, const bn::string_view& text, int x, in
     }
 
     mark_dirty(left, top, width + 8, 16);
+}
+
+void pattern_hline(int x, int y, int width, int on, int period, uint8_t color)
+{
+    for(int i = 0; i < width; i += period)
+    {
+        fill(x + i, y, on < width - i ? on : width - i, 1, color);
+    }
+}
+
+void pattern_vline(int x, int y, int height, int on, int period, uint8_t color)
+{
+    for(int i = 0; i < height; i += period)
+    {
+        fill(x, y + i, 1, on < height - i ? on : height - i, color);
+    }
+}
+
+namespace
+{
+    bool clip(int& x, int& y, int& width, int& height)
+    {
+        int x1 = x + width > screen_width ? screen_width : x + width;
+        int y1 = y + height > screen_height ? screen_height : y + height;
+        x = x < 0 ? 0 : x;
+        y = y < 0 ? 0 : y;
+        width = x1 - x;
+        height = y1 - y;
+        return width > 0 && height > 0;
+    }
+}
+
+void fade(int x, int y, int width, int height, fade_style style)
+{
+    if(clip(x, y, width, height))
+    {
+        raster::remap(canvas, x, y, x + width, y + height, fade_tables[style == fade_style::phosphor ? 0 : 1]);
+        mark_dirty(x, y, width, height);
+    }
+}
+
+void checker(int x, int y, int width, int height, uint8_t color)
+{
+    if(clip(x, y, width, height))
+    {
+        raster::checker(canvas, x, y, x + width, y + height, color);
+        mark_dirty(x, y, width, height);
+    }
 }
 
 }

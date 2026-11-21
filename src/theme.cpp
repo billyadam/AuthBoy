@@ -11,6 +11,15 @@ namespace
 
     theme_painters field_guide_painters = { field_guide::home(), field_guide::keyboard(), field_guide::screens() };
     theme_painters classic_painters = { classic::home(), classic::keyboard(), classic::screens() };
+    theme_painters net_link_painters = { net_link::home(), net_link::keyboard(), net_link::screens() };
+    theme_painters pocket_lcd_painters = { pocket_lcd::home(), pocket_lcd::keyboard(), pocket_lcd::screens() };
+    theme_painters phosphor_painters = { phosphor::home(), phosphor::keyboard(), phosphor::screens() };
+
+    constexpr ui_theme settings_order[] = {
+        ui_theme::classic, ui_theme::field_guide, ui_theme::net_link, ui_theme::pocket_lcd, ui_theme::phosphor
+    };
+
+    static_assert(sizeof(settings_order) / sizeof(settings_order[0]) == ui_theme_count);
 
     // Every layout is a full grid so rows line up.
     constexpr const char* name_upper_rows[] = { "ABCDEFGHIJ", "KLMNOPQRST", "UVWXYZ0123", "456789-._@" };
@@ -42,12 +51,81 @@ ui_theme current_theme()
 
 const theme_painters& painters()
 {
-    return active == ui_theme::classic ? classic_painters : field_guide_painters;
+    switch(active)
+    {
+
+    case ui_theme::classic:
+        return classic_painters;
+
+    case ui_theme::net_link:
+        return net_link_painters;
+
+    case ui_theme::pocket_lcd:
+        return pocket_lcd_painters;
+
+    case ui_theme::phosphor:
+        return phosphor_painters;
+
+    default:
+        return field_guide_painters;
+    }
 }
 
 const char* theme_name(ui_theme theme)
 {
-    return theme == ui_theme::classic ? "Classic" : "Field Guide";
+    switch(theme)
+    {
+
+    case ui_theme::classic:
+        return "Classic";
+
+    case ui_theme::net_link:
+        return "Net Link";
+
+    case ui_theme::pocket_lcd:
+        return "Pocket LCD";
+
+    case ui_theme::phosphor:
+        return "Phosphor";
+
+    default:
+        return "Field Guide";
+    }
+}
+
+const char* theme_short_name(ui_theme theme)
+{
+    switch(theme)
+    {
+
+    case ui_theme::classic:
+        return "CLASSIC";
+
+    case ui_theme::net_link:
+        return "NET";
+
+    case ui_theme::pocket_lcd:
+        return "LCD";
+
+    case ui_theme::phosphor:
+        return "AMBER";
+
+    default:
+        return "FIELD";
+    }
+}
+
+ui_theme next_theme(ui_theme theme)
+{
+    for(int i = 0; i < ui_theme_count; ++i)
+    {
+        if(settings_order[i] == theme)
+        {
+            return settings_order[(i + 1) % ui_theme_count];
+        }
+    }
+
+    return ui_theme::field_guide;
 }
 
 void home_state::prepare()

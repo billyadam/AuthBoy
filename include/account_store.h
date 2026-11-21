@@ -22,9 +22,12 @@ namespace app
     {
         field_guide,    // the default
         classic,        // the original look
+        net_link,
+        pocket_lcd,
+        phosphor,
     };
 
-    constexpr int ui_theme_count = 2;
+    constexpr int ui_theme_count = 5;
 
     struct account_list
     {
