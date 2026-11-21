@@ -60,6 +60,9 @@ namespace ui
         body,       // Butano common variable 8x16 font glyphs (stands in for "font_body8")
         digits,     // Butano common fixed 8x16 font glyphs, 7 px advance (stands in for "font_digits8")
         code12,     // digits 0-9 only, 12 px tall / 10 px wide, built from "digits" (use scale 1)
+        body6,      // "body" with 6 px caps (one row dropped); footer labels (use scale 1)
+        digits6,    // "digits" with 6 px caps; footer pills / buttons, header clock and date (use scale 1)
+        title12,    // "body" at 12 px caps (between 1x and 2x); header titles (use scale 1)
     };
 
     enum class align : uint8_t
@@ -124,9 +127,11 @@ namespace ui
     void cursor_down(int x, int y, uint8_t color);      // 5x3, pointing down
     void cursor_up(int x, int y, uint8_t color);        // 5x3, pointing up
 
-    void round_button(int x, int y, const char* letter, uint8_t fill_color, uint8_t letter_color);   // 10x10
-    int pill(int x, int y, const char* label, uint8_t fill_color, uint8_t text_color);              // returns width
-    int pill_width(const char* label);
+    void round_button(int x, int y, const char* letter, uint8_t fill_color, uint8_t letter_color,
+                      font letter_font = font::digits);                                           // 10x10
+    int pill(int x, int y, const char* label, uint8_t fill_color, uint8_t text_color,
+             font label_font = font::digits);                                                     // returns width
+    int pill_width(const char* label, font label_font = font::digits);
 
     // Keyboard key cap; selected adds the yellow fill and red outline around it.
     void key_cap(int x, int y, int width, int height, char label, bool selected, uint8_t panel_color);

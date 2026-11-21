@@ -275,8 +275,8 @@ namespace
                 append_padded(date_text, abs_offset % 60, 2);
             }
 
-            ui::text(ui::font::digits, time_text, 233, 3, ui::white, ui::no_shadow, 1, ui::align::right);
-            ui::text(ui::font::digits, date_text, 233, 12, ui::header_subtext, ui::no_shadow, 1, ui::align::right);
+            ui::text(ui::font::digits6, time_text, 233, 4, ui::white, ui::no_shadow, 1, ui::align::right);
+            ui::text(ui::font::digits6, date_text, 233, 13, ui::header_subtext, ui::no_shadow, 1, ui::align::right);
         }
 
         void draw_time_bar()

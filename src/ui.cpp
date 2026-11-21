@@ -252,8 +252,129 @@ namespace
         }
     }
 
+    // Derived sizes, built at startup from the 9 drawn rows / 8 cell columns of a base font by
+    // repeating each row / column 0, 1 or 2 times (so 2 px strokes stay as even as possible).
+    struct derived_font_data
+    {
+        uint16_t masks[glyph_count][16];    // bit n = output column n
+        int8_t advance[glyph_count];
+        int rows;
+        int x_offset;                       // output columns left of the glyph's x
+        int last_gap;                       // blank columns after the last glyph
+    };
+
+    BN_DATA_EWRAM_BSS derived_font_data derived_fonts[3];     // body6, digits6, title12
+
+    derived_font_data* derived(font text_font)
+    {
+        switch(text_font)
+        {
+
+        case font::body6:
+            return &derived_fonts[0];
+
+        case font::digits6:
+            return &derived_fonts[1];
+
+        case font::title12:
+            return &derived_fonts[2];
+
+        default:
+            return nullptr;
+        }
+    }
+
+    void build_derived_font(derived_font_data& out, bool digits_base, const uint8_t (&row_repeat)[glyph_rows],
+                            const uint8_t (&column_repeat)[8], int last_gap)
+    {
+        out.rows = 0;
+
+        for(uint8_t repeat : row_repeat)
+        {
+            out.rows += repeat;
+        }
+
+        // Fixed font: cell column 1 sits at x, column 0 (bit 7 in its masks) one step left of it.
+        out.x_offset = digits_base ? column_repeat[0] : 0;
+        out.last_gap = last_gap;
+
+        for(int glyph = 0; glyph < glyph_count; ++glyph)
+        {
+            const uint8_t* source = glyph_masks[digits_base ? 1 : 0][glyph];
+            int advance = 0;
+
+            if(digits_base)
+            {
+                for(int column = 1; column < 8; ++column)
+                {
+                    advance += column_repeat[column];
+                }
+            }
+            else
+            {
+                int width = common::variable_8x16_sprite_font_character_widths[glyph];
+
+                for(int column = 0; column < width && column < 8; ++column)
+                {
+                    advance += column_repeat[column];
+                }
+            }
+
+            out.advance[glyph] = int8_t(advance);
+
+            int out_row = 0;
+
+            for(int row = 0; row < glyph_rows; ++row)
+            {
+                uint16_t mask = 0;
+                int out_column = 0;
+
+                for(int column = 0; column < 8; ++column)
+                {
+                    bool on = digits_base ? (column == 0 ? (source[row] >> 7) & 1 : (source[row] >> (column - 1)) & 1) :
+                                            (source[row] >> column) & 1;
+
+                    for(int i = 0; i < column_repeat[column]; ++i)
+                    {
+                        if(on)
+                        {
+                            mask |= uint16_t(1 << out_column);
+                        }
+
+                        ++out_column;
+                    }
+                }
+
+                for(int i = 0; i < row_repeat[row]; ++i)
+                {
+                    out.masks[glyph][out_row++] = mask;
+                }
+            }
+        }
+    }
+
+    void build_derived_fonts()
+    {
+        // 6 px: drop the 2nd row (a stem row in caps and digits; lowercase starts below it).
+        constexpr uint8_t six_rows[glyph_rows] = { 1, 0, 1, 1, 1, 1, 1, 1, 1 };
+        constexpr uint8_t same_columns[8] = { 1, 1, 1, 1, 1, 1, 1, 1 };
+
+        // 12 px title: 2x, except the 2nd and 6th rows and some columns stay single.
+        constexpr uint8_t twelve_rows[glyph_rows] = { 2, 1, 2, 2, 2, 1, 2, 2, 2 };
+        constexpr uint8_t twelve_columns[8] = { 2, 1, 2, 2, 1, 2, 2, 1 };
+
+        build_derived_font(derived_fonts[0], false, six_rows, same_columns, 1);
+        build_derived_font(derived_fonts[1], true, six_rows, same_columns, 1);
+        build_derived_font(derived_fonts[2], false, twelve_rows, twelve_columns, 2);
+    }
+
     int advance(font text_font, char c, int scale)
     {
+        if(derived_font_data* data = derived(text_font))
+        {
+            return data->advance[glyph_index(c)];
+        }
+
         if(text_font == font::code12)
         {
             return code12_advance;
@@ -283,6 +404,12 @@ namespace
                 raster::glyph16(canvas, code12_masks[c - '0'], code12_rows, x, y, color);
             }
 
+            return;
+        }
+
+        if(derived_font_data* data = derived(text_font))
+        {
+            raster::glyph16(canvas, data->masks[index], data->rows, x - data->x_offset, y, color);
             return;
         }
 
@@ -321,6 +448,7 @@ void init()
     build_glyph_masks(0, body_tiles, body_fill_index, 0);
     build_glyph_masks(1, digits_tiles, digits_fill_index, 1);   // fixed font glyphs start one column in
     build_code12_masks();
+    build_derived_fonts();
 
     // 8bpp tiles are counted in 4bpp units by Butano. No offset: the map indexes them directly.
     bg_tiles = bn::regular_bg_tiles_ptr::allocate(tile_count * 2, bn::bpp_mode::BPP_8, false);
@@ -414,7 +542,17 @@ int text_width(font text_font, const bn::string_view& text, int scale)
         width += advance(text_font, c, scale);
     }
 
-    int last_gap = text_font == font::code12 ? code12_advance - 10 : scale;
+    int last_gap = scale;
+
+    if(text_font == font::code12)
+    {
+        last_gap = code12_advance - 10;
+    }
+    else if(derived_font_data* data = derived(text_font))
+    {
+        last_gap = data->last_gap;
+    }
+
     return width > 0 ? width - last_gap : 0;     // no gap after the last glyph
 }
 
@@ -486,7 +624,7 @@ void header(const bn::string_view& title)
     fill(0, 0, screen_width, 22, red);
     fill(0, 1, screen_width, 1, header_light);
     fill(0, 22, screen_width, 2, header_shadow);
-    text(font::body, title, 6, 3, white, header_shadow, 2);
+    text(font::title12, title, 6, 4, white, header_shadow);
 }
 
 void header_band_clear(int x, int width)
@@ -500,23 +638,23 @@ void footer_bar(int top)
     fill(0, top, screen_width, 1, footer_light);
 }
 
-int pill_width(const char* label)
+int pill_width(const char* label, font label_font)
 {
-    return text_width(font::digits, label) + 8;
+    return text_width(label_font, label) + 8;
 }
 
-int pill(int x, int y, const char* label, uint8_t fill_color, uint8_t text_color)
+int pill(int x, int y, const char* label, uint8_t fill_color, uint8_t text_color, font label_font)
 {
-    int width = pill_width(label);
+    int width = pill_width(label, label_font);
     round_fill(x, y, width, 10, 4, fill_color);
-    text(font::digits, label, x + 4, y + 2, text_color);
+    text(label_font, label, x + 4, y + 2, text_color);
     return width;
 }
 
-void round_button(int x, int y, const char* letter, uint8_t fill_color, uint8_t letter_color)
+void round_button(int x, int y, const char* letter, uint8_t fill_color, uint8_t letter_color, font letter_font)
 {
     round_fill(x, y, 10, 10, 5, fill_color);
-    text(font::digits, letter, x + 5, y + 2, letter_color, no_shadow, 1, align::center);
+    text(letter_font, letter, x + 5, y + 2, letter_color, no_shadow, 1, align::center);
 }
 
 namespace
@@ -528,8 +666,8 @@ namespace
 
     int hint_width(const hint& item)
     {
-        int button_width = is_round_button(item.button) ? 10 : pill_width(item.button);
-        return button_width + 3 + text_width(font::body, item.label);
+        int button_width = is_round_button(item.button) ? 10 : pill_width(item.button, font::digits6);
+        return button_width + 3 + text_width(font::body6, item.label);
     }
 }
 
@@ -552,22 +690,22 @@ void footer_hints(int text_y, const hint* hints, int count)
 
         if(is_round_button(item.button))
         {
-            round_button(x, text_y - 1, item.button, white, ink);
+            round_button(x, text_y - 1, item.button, white, ink, font::digits6);
             button_width = 10;
         }
         else
         {
-            button_width = pill(x, text_y - 1, item.button, white, ink);
+            button_width = pill(x, text_y - 1, item.button, white, ink, font::digits6);
         }
 
-        text(font::body, item.label, x + button_width + 3, text_y, white);
+        text(font::body6, item.label, x + button_width + 3, text_y, white);
         x += hint_width(item) + gap;
     }
 }
 
 void footer_message(int text_y, const bn::string_view& message)
 {
-    text(font::body, message, screen_width / 2, text_y, selection, no_shadow, 1, align::center);
+    text(font::body6, message, screen_width / 2, text_y, selection, no_shadow, 1, align::center);
 }
 
 void panel(int x, int y, int width, int height, uint8_t fill_color, bool modal)
