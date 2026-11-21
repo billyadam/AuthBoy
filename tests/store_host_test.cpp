@@ -171,6 +171,34 @@ namespace
         return header;
     }
 
+    // Version 4 slot layout: header (68 bytes), mac (16), checksum (4), slot_checksum (4), payload.
+    constexpr int v4_flags_offset = 12;
+    constexpr int v4_slot_checksum_offset = 68 + 16 + 4;
+    constexpr int v4_payload_offset = v4_slot_checksum_offset + 4;
+    constexpr int v4_payload_size = 4 + app::max_accounts * int(sizeof(app::account));
+
+    uint32_t v4_slot_checksum(int slot)
+    {
+        const uint8_t* base = bn::sram::data + slot * slot_size;
+        return fnv(fnv(2166136261u, base, v4_slot_checksum_offset), base + v4_payload_offset, v4_payload_size);
+    }
+
+    uint32_t v4_flags(int slot)
+    {
+        uint32_t flags;
+        std::memcpy(&flags, bn::sram::data + slot * slot_size + v4_flags_offset, sizeof(flags));
+        return flags;
+    }
+
+    // Rewrites a slot's header flags and fixes its slot checksum (as another build would write it).
+    void set_v4_flags(int slot, uint32_t flags)
+    {
+        uint8_t* base = bn::sram::data + slot * slot_size;
+        std::memcpy(base + v4_flags_offset, &flags, sizeof(flags));
+        uint32_t sum = v4_slot_checksum(slot);
+        std::memcpy(base + v4_slot_checksum_offset, &sum, sizeof(sum));
+    }
+
     // Saves with a password, then reloads and unlocks into list. Returns true if it worked.
     bool reload_and_unlock(const char* password)
     {
@@ -226,6 +254,59 @@ int main()
     check(app::locked() && list.count == 0, "lock clears the list");
     check(app::unlock_accounts("HUNTER22", 8, list) == app::pin_result::ok &&
           std::strcmp(list.items[0].label, "after-recovery") == 0, "unlock after lock");
+
+    // ---- Theme: in the header flags, readable while locked; unknown values mean Field Guide ----
+    check(list.theme == app::ui_theme::field_guide && (v4_flags(0) & 0xFF00) == 0, "theme: default Field Guide");
+
+    list.theme = app::ui_theme::classic;
+    app::save_accounts(list);
+    app::load_accounts(list);
+    check(app::locked() && list.theme == app::ui_theme::classic, "theme: classic known before unlocking");
+    check(app::unlock_accounts("HUNTER22", 8, list) == app::pin_result::ok &&
+          std::strcmp(list.items[0].label, "after-recovery") == 0, "theme: accounts unaffected");
+
+    app::lock_accounts(list);
+    check(list.theme == app::ui_theme::classic, "theme: kept when locking");
+    app::unlock_accounts("HUNTER22", 8, list);
+
+    // A theme number from a future build (sealed normally): Field Guide here, accounts still open.
+    list.theme = app::ui_theme(7);
+    list.custom_order = true;
+    app::save_accounts(list);
+    app::load_accounts(list);
+    check(list.theme == app::ui_theme::field_guide && list.custom_order, "theme: unknown value -> Field Guide");
+    check(app::unlock_accounts("HUNTER22", 8, list) == app::pin_result::ok &&
+          std::strcmp(list.items[0].label, "after-recovery") == 0, "theme: unknown value, accounts still unlock");
+    list.custom_order = false;
+
+    // Unencrypted version 4 saves: from a build before themes (theme bits 0) and with garbage there.
+    erase_sram();
+    app::load_accounts(list);
+    fill_expected(6);
+    list = expected;
+    list.theme = app::ui_theme::classic;
+    app::save_accounts(list);       // no password yet: unencrypted, slot 0
+    {
+        uint32_t stored;
+        std::memcpy(&stored, bn::sram::data + v4_slot_checksum_offset, sizeof(stored));
+        check(v4_slot_checksum(0) == stored && (v4_flags(0) & 0xFF00) == 0x100,
+              "theme: test helper matches the slot layout");
+    }
+
+    set_v4_flags(0, 2);             // custom order, no theme bits
+    app::load_accounts(list);
+    check(! app::pin_enabled() && list.theme == app::ui_theme::field_guide && list.custom_order &&
+          lists_equal(list, expected), "theme: pre-theme v4 save -> Field Guide, accounts loaded");
+
+    set_v4_flags(0, 2 | 0xAB00 | 0x40000);
+    app::load_accounts(list);
+    check(list.theme == app::ui_theme::field_guide && list.custom_order && lists_equal(list, expected),
+          "theme: garbage theme bits -> Field Guide, accounts loaded");
+
+    set_v4_flags(0, 1u << 8);
+    app::load_accounts(list);
+    check(list.theme == app::ui_theme::classic && ! list.custom_order && lists_equal(list, expected),
+          "theme: classic bits read back");
 
     // ---- Version 3 encrypted save (current release) upgrades ----
     erase_sram();
@@ -306,7 +387,8 @@ int main()
     }
 
     app::load_accounts(list);
-    check(! app::pin_enabled() && lists_equal(list, expected), "v3 unencrypted: accounts loaded, setup needed");
+    check(! app::pin_enabled() && lists_equal(list, expected) && list.theme == app::ui_theme::field_guide,
+          "v3 unencrypted: accounts loaded, setup needed, Field Guide");
 
     erase_sram();
     {
@@ -326,7 +408,8 @@ int main()
     }
 
     app::load_accounts(list);
-    check(! app::pin_enabled() && lists_equal(list, expected), "v2: accounts loaded");
+    check(! app::pin_enabled() && lists_equal(list, expected) && list.theme == app::ui_theme::field_guide,
+          "v2: accounts loaded, Field Guide");
     check(app::set_pin("NEWPASS9", 8, list) == app::pin_result::ok && slot_header(1).version == 4,
           "v2: setting a password writes slot 1");
     check(reload_and_unlock("newpass9") && lists_equal(list, expected), "v2: upgraded and encrypted");

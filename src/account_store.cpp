@@ -29,6 +29,17 @@ namespace
     constexpr uint32_t flag_encrypted = 1;
     constexpr uint32_t flag_custom_order = 2;   // unset = sort A-Z (the default)
 
+    // Bits 8-15: the theme (version 4 saves from before themes have 0 = Field Guide there, and
+    // builds that don't know these bits ignore them). Unknown values also mean Field Guide.
+    constexpr int theme_shift = 8;
+    constexpr uint32_t theme_mask = 0xFFu << theme_shift;
+
+    ui_theme theme_from_flags(uint32_t flags)
+    {
+        uint32_t value = (flags & theme_mask) >> theme_shift;
+        return value < uint32_t(ui_theme_count) ? ui_theme(value) : ui_theme::field_guide;
+    }
+
     constexpr int sram_slot_size = 16 * 1024;
     constexpr int sram_slot_count = 2;
 
@@ -291,7 +302,8 @@ namespace
 
         block.header.version = save_version;
         block.header.save_counter = ++state.save_counter;
-        block.header.flags = accounts.custom_order ? flag_custom_order : 0;
+        block.header.flags = (accounts.custom_order ? flag_custom_order : 0) |
+                             (uint32_t(accounts.theme) << theme_shift & theme_mask);
 
         payload& data = block.data;
         data.count = accounts.count;
@@ -430,6 +442,7 @@ void load_accounts(account_list& accounts)
 {
     wipe_list(accounts);
     accounts.custom_order = false;
+    accounts.theme = ui_theme::field_guide;     // also for version 2 / 3 saves (no theme in them)
     state = {};
 
     if(! load_newest_slot())
@@ -440,6 +453,7 @@ void load_accounts(account_list& accounts)
 
     const save_header& header = block.header;
     accounts.custom_order = (header.flags & flag_custom_order) != 0;
+    accounts.theme = theme_from_flags(header.flags);
 
     if(header.flags & flag_encrypted)
     {

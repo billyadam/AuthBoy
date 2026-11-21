@@ -17,6 +17,15 @@ namespace app
         uint8_t secret[max_secret_bytes];
     };
 
+    // The app's look. Saved in the (unencrypted) save header so the unlock screen can use it.
+    enum class ui_theme : uint8_t
+    {
+        field_guide,    // the default
+        classic,        // the original look
+    };
+
+    constexpr int ui_theme_count = 2;
+
     struct account_list
     {
         int count = 0;
@@ -24,6 +33,9 @@ namespace app
 
         // false: the list is shown sorted A-Z (case-insensitive); true: shown in stored order.
         bool custom_order = false;
+
+        // Kept when the store is locked (only the accounts are cleared).
+        ui_theme theme = ui_theme::field_guide;
     };
 
     // Fills order[0..count) with item indexes in display order.

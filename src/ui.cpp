@@ -14,6 +14,7 @@
 #include "bn_sprite_items_common_fixed_8x16_font.h"
 #include "common_variable_8x16_sprite_font.h"
 
+#include "otp_export.h"
 #include "ui_raster.h"
 
 namespace ui
@@ -45,6 +46,8 @@ namespace
         // 32..39: badge colors
         hex(0x3070e0), hex(0x8060e8), hex(0x2898f8), hex(0xf07830), hex(0xe04038), hex(0x50a848), hex(0xd058a8),
         hex(0x38b0a0),
+        // 40..43: Classic theme
+        hex(0x101840), hex(0x223678), hex(0x2850aa), hex(0x6ea0ff),
     };
 
     constexpr bn::bg_palette_item palette_item(palette_colors, bn::bpp_mode::BPP_8);
@@ -818,6 +821,98 @@ uint8_t badge_color(const char* name)
     }
 
     return uint8_t(badge_0 + hash % 8);
+}
+
+int qr_code(const uint8_t* qrcode, int x, int area_top, int area_height, int max_module)
+{
+    constexpr int quiet_zone = 4;     // modules of white border required around a QR Code
+    int size = otp_export::qr_size(qrcode);
+    int modules = size + 2 * quiet_zone;
+    int pixels = area_height / modules;
+
+    if(pixels > max_module)
+    {
+        pixels = max_module;
+    }
+
+    int side = modules * pixels;
+    int y = area_top + (area_height - side) / 2;
+    fill(x, y, side, side, white);
+
+    for(int module_y = 0; module_y < size; ++module_y)
+    {
+        for(int module_x = 0; module_x < size; ++module_x)
+        {
+            if(otp_export::qr_module(qrcode, module_x, module_y))
+            {
+                fill(x + (quiet_zone + module_x) * pixels, y + (quiet_zone + module_y) * pixels, pixels, pixels,
+                     qr_dark);
+            }
+        }
+    }
+
+    return side;
+}
+
+namespace
+{
+    // Sprite font palette indices: body (variable) fill 14 / outline 12, mono (fixed) fill 1 / outline 2.
+    constexpr int classic_small_fill = 14, classic_small_shade = 12;
+    constexpr int classic_mono_fill = 1, classic_mono_shade = 2;
+
+    int classic_advance(classic_font text_font, char c)
+    {
+        return text_font == classic_font::mono ? 8 : common::variable_8x16_sprite_font_character_widths[glyph_index(c)];
+    }
+}
+
+int classic_text_width(classic_font text_font, const bn::string_view& text)
+{
+    int width = 0;
+
+    for(char c : text)
+    {
+        width += classic_advance(text_font, c);
+    }
+
+    return width;
+}
+
+void classic_text(classic_font text_font, const bn::string_view& text, int x, int y, align alignment)
+{
+    int width = classic_text_width(text_font, text);
+    int left = screen_width / 2 + x;
+    int top = screen_height / 2 + y - 8;
+
+    if(alignment == align::center)
+    {
+        left -= width / 2;
+    }
+    else if(alignment == align::right)
+    {
+        left -= width;
+    }
+
+    bool mono = text_font == classic_font::mono;
+    const bn::tile* tiles = mono ? digits_tiles : body_tiles;
+    int cx = left;
+
+    for(char c : text)
+    {
+        int index = glyph_index(c);
+
+        // Butano font images have no glyph for the space: their first glyph is '!'.
+        if(index > 0)
+        {
+            const bn::tile* cell = tiles + (index - 1) * 2;
+            raster::glyph_cell(canvas, cell[0].data, cx, top, mono ? classic_mono_fill : classic_small_fill, white,
+                               mono ? classic_mono_shade : classic_small_shade, black);
+        }
+
+        cx += classic_advance(text_font, c);
+    }
+
+    mark_dirty(left, top, width + 8, 16);
 }
 
 }

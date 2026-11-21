@@ -6,6 +6,7 @@
 #include "code_scene.h"
 #include "entropy.h"
 #include "pin_scenes.h"
+#include "theme.h"
 
 namespace
 {
@@ -19,6 +20,7 @@ int main()
     app::entropy_init();
     ui::init();
     app::load_accounts(accounts);
+    app::set_theme(accounts.theme);     // known before unlocking: the save header isn't encrypted
     int selected = 0;   // display position in the list
 
     while(true)

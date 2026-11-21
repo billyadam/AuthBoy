@@ -128,4 +128,41 @@ BN_CODE_IWRAM void glyph(uint8_t* canvas, const uint8_t* row_masks, int rows, in
     }
 }
 
+BN_CODE_IWRAM void glyph_cell(uint8_t* canvas, const uint32_t* cell_rows, int x, int y, int fill_index,
+                              uint8_t fill_color, int shade_index, uint8_t shade_color)
+{
+    for(int row = 0; row < 16; ++row)
+    {
+        uint32_t bits = cell_rows[row];
+        int py = y + row;
+
+        if(! bits || unsigned(py) >= unsigned(screen_height))
+        {
+            continue;
+        }
+
+        uint8_t* row_base = canvas + (py >> 3) * tile_row_bytes + ((py & 7) << 3);
+
+        for(int column = 0; bits; ++column, bits >>= 4)
+        {
+            int value = int(bits & 0xF);
+            int px = x + column;
+
+            if(! value || unsigned(px) >= unsigned(screen_width))
+            {
+                continue;
+            }
+
+            if(value == fill_index)
+            {
+                row_base[(px >> 3) * tile_bytes + (px & 7)] = fill_color;
+            }
+            else if(value == shade_index)
+            {
+                row_base[(px >> 3) * tile_bytes + (px & 7)] = shade_color;
+            }
+        }
+    }
+}
+
 }

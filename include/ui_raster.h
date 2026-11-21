@@ -26,6 +26,11 @@ namespace ui::raster
     // Draws one glyph from its row bitmasks (bit n = column n), clipped to the screen.
     BN_CODE_IWRAM void glyph(uint8_t* canvas, const uint8_t* row_masks, int rows, int x, int y, int scale,
                              uint8_t color);
+
+    // Draws a whole 8x16 4bpp font cell (16 rows of 8 nibbles): pixels equal to fill_index get
+    // fill_color, pixels equal to shade_index get shade_color, the rest is left as is.
+    BN_CODE_IWRAM void glyph_cell(uint8_t* canvas, const uint32_t* cell_rows, int x, int y, int fill_index,
+                                  uint8_t fill_color, int shade_index, uint8_t shade_color);
 }
 
 #endif

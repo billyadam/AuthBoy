@@ -51,6 +51,13 @@ namespace ui
         qr_dark = 31,           // #000000 QR Code modules (pure black for scanning contrast)
 
         badge_0 = 32,           // 8 badge colors: badge_0 + (hash % 8)
+
+        // 40..: Classic theme (the original look)
+        classic_backdrop = 40,  // #101840 screen
+        classic_panel = 41,     // #223678 popup panel
+        classic_key = 42,       // #2850aa key cursor fill
+        classic_key_edge = 43,  // #6ea0ff key cursor border
+        black = qr_dark,        // Classic text outline
     };
 
     constexpr int no_shadow = -1;
@@ -141,6 +148,25 @@ namespace ui
 
     // Stable badge color for an account name.
     uint8_t badge_color(const char* name);
+
+    // Draws a QR Code (black modules, white quiet zone of 4 modules) with its left edge at x,
+    // centered in [area_top, area_top + area_height) using the biggest whole-pixel module size
+    // that fits (max_module px at most). Returns the side in pixels.
+    int qr_code(const uint8_t* qrcode, int x, int area_top, int area_height, int max_module = 4);
+
+    // ---- Classic theme text ----
+    // Butano's 8x16 sprite fonts drawn whole, as the original sprite text was: white with the
+    // fonts' own black outline. Coordinates are the original sprite ones: (0, 0) is the screen
+    // center and y is the middle of the 16 px line (top = 72 + y on screen).
+    enum class classic_font : uint8_t
+    {
+        small,      // variable width
+        mono,       // 8 px per character
+    };
+
+    int classic_text_width(classic_font text_font, const bn::string_view& text);
+    void classic_text(classic_font text_font, const bn::string_view& text, int x, int y,
+                      align alignment = align::center);
 }
 
 #endif

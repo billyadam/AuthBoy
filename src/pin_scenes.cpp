@@ -7,8 +7,8 @@
 #include "entropy.h"
 #include "keyboard.h"
 #include "otp_export.h"
+#include "theme.h"
 #include "totp.h"
-#include "ui.h"
 #include "vault.h"
 
 namespace app
@@ -18,50 +18,21 @@ namespace
 {
     constexpr int blink_frames = 30;
 
-    // Header + "Unlocking..." style box, made visible before slow work (Argon2) starts.
+    // "Unlocking..." style screen, made visible before slow work (Argon2) starts.
     void show_busy(const char* title)
     {
-        ui::background();
-        ui::header("AuthBoy");
-        ui::busy_box(title, "This takes a few seconds");
+        painters().screens.busy(title);
         frame_update();
         frame_update();
     }
 
-    // "(A) label" followed by the blinking "next" arrow, right-aligned to right_x.
-    void draw_continue(int right_x, int y, const char* label, bool arrow_visible)
-    {
-        int label_width = ui::text_width(ui::font::body, label);
-        int x = right_x - 5 - 4 - label_width - 3 - 10;
-        ui::round_button(x, y - 1, "A", ui::ink, ui::white);
-        ui::text(ui::font::body, label, x + 13, y, ui::ink, ui::light_shadow);
-        ui::fill(right_x - 5, y + 2, 5, 3, ui::white);
-
-        if(arrow_visible)
-        {
-            ui::cursor_down(right_x - 5, y + 2, ui::red);
-        }
-    }
-
-    // Dialogue box with up to three lines; waits for A (returns true) or B (returns false).
+    // Message with up to three lines; waits for A (returns true) or B (returns false).
     bool message_screen(const char* line_1, const char* line_2, const char* line_3, const char* a_label)
     {
+        screen_painter& painter = painters().screens;
         const char* lines[3] = { line_1, line_2, line_3 };
         int line_count = line_3 ? 3 : line_2 ? 2 : 1;
-        int height = 10 + line_count * 12 + 22;
-        int x = 4, y = 156 - height, width = 232;
-        int button_y = y + height - 18;
-
-        ui::background();
-        ui::header("AuthBoy");
-        ui::panel(x, y, width, height, ui::white, true);
-
-        for(int i = 0; i < line_count; ++i)
-        {
-            ui::text(ui::font::body, lines[i], x + 6, y + 10 + i * 12, ui::ink, ui::light_shadow);
-        }
-
-        draw_continue(x + width - 8, button_y, a_label, true);
+        painter.message(lines, line_count, a_label);
         frame_update();
 
         int blink_counter = 0;
@@ -82,29 +53,18 @@ namespace
 
             if(blink_counter % blink_frames == 0)
             {
-                draw_continue(x + width - 8, button_y, a_label, (blink_counter / blink_frames) % 2 == 0);
+                painter.message_blink(lines, line_count, a_label, (blink_counter / blink_frames) % 2 == 0);
             }
 
             frame_update();
         }
     }
 
-    // Screen 10: first-run welcome.
+    // First run: welcome, waits for A.
     void welcome_screen()
     {
-        ui::background();
-        ui::fill(0, 0, 240, 76, ui::red);
-        ui::fill(0, 1, 240, 1, ui::header_light);
-        ui::fill(0, 64, 240, 4, ui::hero_accent);
-        ui::fill(0, 76, 240, 2, ui::header_shadow);
-        ui::text(ui::font::body, "Welcome to", 120, 18, ui::header_subtext, ui::no_shadow, 1, ui::align::center);
-        ui::text(ui::font::body, "AuthBoy", 120, 28, ui::white, ui::header_shadow, 4, ui::align::center, 2);
-
-        constexpr int x = 4, y = 100, width = 232, height = 56;
-        ui::panel(x, y, width, height, ui::white, true);
-        ui::text(ui::font::body, "Set a password to encrypt", x + 6, y + 10, ui::ink, ui::light_shadow);
-        ui::text(ui::font::body, "your accounts", x + 6, y + 22, ui::ink, ui::light_shadow);
-        draw_continue(x + width - 8, y + 34, "continue", true);
+        screen_painter& painter = painters().screens;
+        painter.welcome();
         frame_update();
 
         int blink_counter = 0;
@@ -115,7 +75,7 @@ namespace
 
             if(blink_counter % blink_frames == 0)
             {
-                draw_continue(x + width - 8, y + 34, "continue", (blink_counter / blink_frames) % 2 == 0);
+                painter.welcome_blink((blink_counter / blink_frames) % 2 == 0);
             }
 
             frame_update();
@@ -316,101 +276,8 @@ void run_show_secret(const account& item)
     bool has_qr = uri_size > 0 && otp_export::make_qr(uri, uri_size, qrcode, temp);
     int secret_size = totp::base32_encode(item.secret, item.secret_size, secret_text, sizeof(secret_text));
 
-    // Header with the account name, no footer: the QR uses the 136 px below the header.
-    bool truncated;
-    bn::string<32> title;
-    title += ui::fit_text(ui::font::body, item.label, 227, 2, truncated);
-
-    if(truncated)
-    {
-        title += "...";
-    }
-
-    ui::background();
-    ui::header(title);
-
-    constexpr int area_top = 24;
-    constexpr int area_height = 160 - area_top;
-    constexpr int quiet_zone = 4;     // modules of white border required around a QR Code
-    int panel_x = 8;
-
-    if(has_qr)
-    {
-        // Biggest whole-pixel module size that fits (4 px max): 4 px up to 25x25, 3 px up to
-        // 37x37, 2 px for 41x41 and 45x45.
-        int size = otp_export::qr_size(qrcode);
-        int modules = size + 2 * quiet_zone;
-        int pixels = area_height / modules;
-
-        if(pixels > 4)
-        {
-            pixels = 4;
-        }
-
-        int side = modules * pixels;
-        int qr_x = 4;
-        int qr_y = area_top + (area_height - side) / 2;
-        ui::fill(qr_x, qr_y, side, side, ui::white);
-
-        for(int y = 0; y < size; ++y)
-        {
-            for(int x = 0; x < size; ++x)
-            {
-                if(otp_export::qr_module(qrcode, x, y))
-                {
-                    ui::fill(qr_x + (quiet_zone + x) * pixels, qr_y + (quiet_zone + y) * pixels, pixels, pixels,
-                             ui::qr_dark);
-                }
-            }
-        }
-
-        panel_x = qr_x + side + 8;
-    }
-
-    // Secret in groups of 4 characters, as many groups per line as fit.
-    int panel_width = 236 - panel_x;
-    ui::text(ui::font::body, has_qr ? "Secret key" : "Link too long for a QR code", panel_x, 30, ui::secondary);
-
-    int chars_per_line = (panel_width + 1) / 7;
-    int groups_per_line = (chars_per_line + 1) / 5;
-
-    if(groups_per_line < 1)
-    {
-        groups_per_line = 1;
-    }
-
-    int y = 44;
-
-    for(int start = 0; start < secret_size; start += groups_per_line * 4)
-    {
-        bn::string<40> line;
-
-        for(int group = 0; group < groups_per_line; ++group)
-        {
-            int group_start = start + group * 4;
-
-            if(group_start >= secret_size)
-            {
-                break;
-            }
-
-            if(group)
-            {
-                line += ' ';
-            }
-
-            for(int i = group_start; i < group_start + 4 && i < secret_size; ++i)
-            {
-                line += secret_text[i];
-            }
-        }
-
-        ui::text(ui::font::digits, line, panel_x, y, ui::ink);
-        y += 11;
-    }
-
-    ui::round_button(panel_x, 147, "B", ui::ink, ui::white);
-    ui::text(ui::font::body, "back", panel_x + 13, 148, ui::ink);
+    secret_view view = { item.label, has_qr ? qrcode : nullptr, secret_text, secret_size > 0 ? secret_size : 0 };
+    painters().screens.show_secret(view);
 
     // Only the screen keeps it now.
     vault::wipe(uri, sizeof(uri));
@@ -428,70 +295,23 @@ void run_show_secret(const account& item)
 
 void run_settings_menu(account_list& accounts)
 {
-    enum option
-    {
-        option_sort,
-        option_lock,
-        option_change,
-        option_count
-    };
-
-    constexpr const char* option_names[option_count] = { "Sort", "Lock now", "Change password" };
-    constexpr ui::hint footer[] = { { "A", "choose" }, { "B", "back" } };
-
-    // Screen 05 geometry
-    constexpr int box_x = 4, box_y = 52, box_width = 232;
-    constexpr int box_height = 9 + option_count * 18 + 1;
-
-    int selected = 0;
-    int frame_counter = 0;
-
-    auto draw_item = [&](int index)
-    {
-        int item_y = box_y + 9 + index * 18;
-        bool is_selected = index == selected;
-        ui::menu_item(box_x, box_width, item_y, option_names[index], ui::ink, ui::light_shadow, is_selected,
-                      is_selected ? ui::cursor_bob(frame_counter) : 0);
-
-        if(index == option_sort)
-        {
-            const char* value = accounts.custom_order ? "CUSTOM" : "A-Z";
-            int pill_x = box_x + box_width - 10 - ui::pill_width(value);
-            ui::pill(pill_x, item_y - 1, value, ui::ink, ui::white);
-        }
-    };
-
-    ui::background();
-    ui::header("Settings");
-
-    ui::panel(4, 28, 232, 18, ui::info, false);
-    ui::round_fill(8, 33, 8, 8, 4, ui::green);
-    ui::fill(10, 34, 4, 2, ui::green_shine);
-    ui::text(ui::font::body, "Password on: accounts encrypted", 18, 33, ui::ink);
-
-    ui::panel(box_x, box_y, box_width, box_height, ui::white, true);
-
-    for(int i = 0; i < option_count; ++i)
-    {
-        draw_item(i);
-    }
-
-    ui::footer_bar(144);
-    ui::footer_hints(147, footer, 2);
+    settings_state state = { accounts };
+    painters().screens.settings(state);
     frame_update();
 
     while(true)
     {
-        int old_selected = selected;
+        screen_painter& painter = painters().screens;
+        int old_selected = state.selected;
 
         if(bn::keypad::up_pressed())
         {
-            selected = selected == 0 ? option_count - 1 : selected - 1;
+            state.selected = state.selected == 0 ? settings_option_count - 1 : state.selected - 1;
         }
 
         if(bn::keypad::down_pressed())
         {
-            selected = selected == option_count - 1 ? 0 : selected + 1;
+            state.selected = state.selected == settings_option_count - 1 ? 0 : state.selected + 1;
         }
 
         if(bn::keypad::b_pressed())
@@ -501,21 +321,30 @@ void run_settings_menu(account_list& accounts)
 
         if(bn::keypad::a_pressed())
         {
-            switch(selected)
+            switch(state.selected)
             {
 
-            case option_sort:
+            case settings_option_sort:
                 // Only changes how the list is shown; the custom order is kept.
                 accounts.custom_order = ! accounts.custom_order;
                 save_accounts(accounts);
-                draw_item(option_sort);
+                painter.settings_item(state, settings_option_sort);
                 break;
 
-            case option_lock:
+            case settings_option_theme:
+                accounts.theme = ui_theme((int(accounts.theme) + 1) % ui_theme_count);
+                set_theme(accounts.theme);
+                save_accounts(accounts);
+                state.frame_counter = 0;
+                painters().screens.settings(state);     // the whole screen in the new look
+                frame_update();
+                continue;
+
+            case settings_option_lock:
                 lock_accounts(accounts);
                 return;
 
-            case option_change:
+            case settings_option_change_password:
                 if(confirm_current_pin())
                 {
                     choose_new_pin(accounts, false);
@@ -528,18 +357,18 @@ void run_settings_menu(account_list& accounts)
             }
         }
 
-        if(selected != old_selected)
+        if(state.selected != old_selected)
         {
-            frame_counter = 0;
-            draw_item(old_selected);
-            draw_item(selected);
+            state.frame_counter = 0;
+            painter.settings_item(state, old_selected);
+            painter.settings_item(state, state.selected);
         }
 
-        ++frame_counter;
+        ++state.frame_counter;
 
-        if(frame_counter % 16 == 0)
+        if(state.frame_counter % 16 == 0)
         {
-            draw_item(selected);
+            painter.settings_item(state, state.selected);
         }
 
         frame_update();
