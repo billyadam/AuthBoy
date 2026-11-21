@@ -12,6 +12,9 @@ namespace app
     // Asks for the PIN until the accounts are unlocked.
     void run_unlock_scene(account_list& accounts);
 
+    // Asks for the password again, then shows the account's otpauth:// QR Code and its secret.
+    void run_show_secret(const account& item);
+
     // Sort order (A-Z / custom), lock now, change PIN.
     void run_settings_menu(account_list& accounts);
 }

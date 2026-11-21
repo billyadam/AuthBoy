@@ -8,6 +8,7 @@ build/
 tests/totp_host_test
 tests/vault_host_test
 tests/store_host_test
+tests/export_host_test
 tests/*.o
 
 # Save files and emulator states: these contain account secrets.

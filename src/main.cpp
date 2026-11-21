@@ -61,6 +61,10 @@ int main()
             app::run_change_secret(accounts, index);
             break;
 
+        case app::code_scene_action::show_secret:
+            app::run_show_secret(accounts.items[index]);
+            break;
+
         case app::code_scene_action::settings_menu:
             app::run_settings_menu(accounts);
 

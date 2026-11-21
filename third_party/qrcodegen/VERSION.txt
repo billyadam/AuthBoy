@@ -1,0 +1,3 @@
+QR Code generator library v1.8.0 (C version) by Project Nayuki
+https://github.com/nayuki/QR-Code-generator - git tag v1.8.0, commit 720f62bddb7226106071d4728c292cb1df519ceb
+Unmodified copies of c/qrcodegen.c and c/qrcodegen.h. Built through src/qrcodegen_build.c (NDEBUG).

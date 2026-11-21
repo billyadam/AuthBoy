@@ -47,16 +47,21 @@ namespace
     {
         popup_rename,
         popup_change_key,
+        popup_show_secret,
         popup_move,
         popup_delete,
         popup_cancel,
     };
 
-    constexpr const char* popup_option_names[] = { "Rename", "Change key", "Move", "Delete", "Cancel" };
-    constexpr popup_option custom_order_options[] = {
-        popup_rename, popup_change_key, popup_move, popup_delete, popup_cancel
+    constexpr const char* popup_option_names[] = {
+        "Rename", "Change key", "Show secret", "Move", "Delete", "Cancel"
     };
-    constexpr popup_option sorted_options[] = { popup_rename, popup_change_key, popup_delete, popup_cancel };
+    constexpr popup_option custom_order_options[] = {
+        popup_rename, popup_change_key, popup_show_secret, popup_move, popup_delete, popup_cancel
+    };
+    constexpr popup_option sorted_options[] = {
+        popup_rename, popup_change_key, popup_show_secret, popup_delete, popup_cancel
+    };
 
     enum class modal_type
     {
@@ -504,7 +509,7 @@ namespace
 
         int menu_count() const
         {
-            return _accounts.custom_order ? 5 : 4;
+            return _accounts.custom_order ? 6 : 5;
         }
 
         void draw_menu_item(int index)
@@ -713,6 +718,9 @@ code_scene_action run_code_scene(account_list& accounts, int& selected)
 
                 case popup_change_key:
                     return code_scene_action::change_secret;
+
+                case popup_show_secret:
+                    return code_scene_action::show_secret;
 
                 case popup_move:
                     view.modal = modal_type::none;

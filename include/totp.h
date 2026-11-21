@@ -32,6 +32,10 @@ namespace totp
     // Returns the number of decoded bytes, or -1 on an invalid character or if output doesn't fit.
     int base32_decode(const char* text, uint8_t* output, int output_capacity);
 
+    // Encodes RFC 4648 Base32, upper case, without '=' padding. Writes a null-terminated string.
+    // Returns the number of characters written, or -1 if output_capacity is too small.
+    int base32_encode(const uint8_t* data, int size, char* output, int output_capacity);
+
     // RFC 4226. digits must be in [1..9].
     uint32_t hotp(const uint8_t* key, size_t key_size, uint64_t counter, int digits = 6);
 

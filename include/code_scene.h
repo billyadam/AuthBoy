@@ -10,6 +10,7 @@ namespace app
         add_account,
         rename_account,     // for the account at display position selected
         change_secret,      // for the account at display position selected
+        show_secret,        // for the account at display position selected
         settings_menu,
     };
 

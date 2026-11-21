@@ -6,6 +6,8 @@ A TOTP authenticator (like Google Authenticator) for the Game Boy Advance, built
 - 6-digit TOTP codes (RFC 6238, SHA-1, 30 s), shown as a scrolling list with a shared countdown
 - Up to 256 accounts, entered with an on-screen Base32 keyboard
 - Rename, change key, delete; sort A-Z or in a custom order
+- Show secret: after re-entering the password, shows the account's `otpauth://` QR Code
+  (scan it to move the account to a phone app) and its Base32 secret
 - Mandatory PIN: accounts are encrypted in save memory with XChaCha20-Poly1305,
   key derived from the PIN with Argon2id (via [Monocypher](https://monocypher.org/))
 
@@ -50,7 +52,7 @@ make -C tests
 
 | Screen | Controls |
 |---|---|
-| List | Up/Down: select, L/R: page up/down, A: options (rename, change key, move, delete), START: add, SELECT: settings |
+| List | Up/Down: select, L/R: page up/down, A: options (rename, change key, show secret, move, delete), START: add, SELECT: settings |
 | Keyboard | D-pad: move, A: type, B: delete, START: done, L: cancel (name: SELECT case, R space) |
 | Settings | Sort A-Z / Custom, Lock now, Change PIN |
 
@@ -67,3 +69,5 @@ make -C tests
   The fonts come from Butano's `common` folder.
 - `third_party/monocypher/`: [Monocypher](https://monocypher.org/) 4.0.2, unmodified,
   2-clause BSD or CC0 (see `third_party/monocypher/LICENCE.md`).
+- `third_party/qrcodegen/`: [QR Code generator](https://github.com/nayuki/QR-Code-generator) v1.8.0
+  by Project Nayuki, unmodified, MIT (see `third_party/qrcodegen/LICENSE.md`).

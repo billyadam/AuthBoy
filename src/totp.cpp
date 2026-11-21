@@ -238,6 +238,41 @@ int base32_decode(const char* text, uint8_t* output, int output_capacity)
     return output_size;
 }
 
+int base32_encode(const uint8_t* data, int size, char* output, int output_capacity)
+{
+    static constexpr char alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+    int length = (size * 8 + 4) / 5;
+
+    if(size < 0 || length + 1 > output_capacity)
+    {
+        return -1;
+    }
+
+    uint32_t bit_buffer = 0;
+    int bit_count = 0;
+    int out = 0;
+
+    for(int i = 0; i < size; ++i)
+    {
+        bit_buffer = (bit_buffer << 8) | data[i];
+        bit_count += 8;
+
+        while(bit_count >= 5)
+        {
+            bit_count -= 5;
+            output[out++] = alphabet[(bit_buffer >> bit_count) & 31];
+        }
+    }
+
+    if(bit_count > 0)
+    {
+        output[out++] = alphabet[(bit_buffer << (5 - bit_count)) & 31];
+    }
+
+    output[out] = 0;
+    return out;
+}
+
 uint32_t hotp(const uint8_t* key, size_t key_size, uint64_t counter, int digits)
 {
     uint8_t message[8];

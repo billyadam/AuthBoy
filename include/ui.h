@@ -48,6 +48,7 @@ namespace ui
         tab_inactive_text = 28, // #68788f
         hero_accent = 29,       // #e85840
         input_shadow = 30,      // #c8d0e0 name input text shadow
+        qr_dark = 31,           // #000000 QR Code modules (pure black for scanning contrast)
 
         badge_0 = 32,           // 8 badge colors: badge_0 + (hash % 8)
     };

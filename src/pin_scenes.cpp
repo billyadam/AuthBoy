@@ -6,6 +6,8 @@
 #include "app_text.h"
 #include "entropy.h"
 #include "keyboard.h"
+#include "otp_export.h"
+#include "totp.h"
 #include "ui.h"
 #include "vault.h"
 
@@ -295,6 +297,133 @@ void run_unlock_scene(account_list& accounts)
     }
 
     wipe_string(pin);
+}
+
+void run_show_secret(const account& item)
+{
+    if(! confirm_current_pin())
+    {
+        return;
+    }
+
+    // Static: kept off the small stack, and wiped as soon as the screen is drawn.
+    static char uri[otp_export::max_uri_size];
+    static uint8_t qrcode[otp_export::qr_buffer_size];
+    static uint8_t temp[otp_export::qr_buffer_size];
+    static char secret_text[72];
+
+    int uri_size = otp_export::build_uri(item.label, item.secret, item.secret_size, uri, sizeof(uri));
+    bool has_qr = uri_size > 0 && otp_export::make_qr(uri, uri_size, qrcode, temp);
+    int secret_size = totp::base32_encode(item.secret, item.secret_size, secret_text, sizeof(secret_text));
+
+    // Header with the account name, no footer: the QR uses the 136 px below the header.
+    bool truncated;
+    bn::string<32> title;
+    title += ui::fit_text(ui::font::body, item.label, 227, 2, truncated);
+
+    if(truncated)
+    {
+        title += "...";
+    }
+
+    ui::background();
+    ui::header(title);
+
+    constexpr int area_top = 24;
+    constexpr int area_height = 160 - area_top;
+    constexpr int quiet_zone = 4;     // modules of white border required around a QR Code
+    int panel_x = 8;
+
+    if(has_qr)
+    {
+        // Biggest whole-pixel module size that fits (4 px max): 4 px up to 25x25, 3 px up to
+        // 37x37, 2 px for 41x41 and 45x45.
+        int size = otp_export::qr_size(qrcode);
+        int modules = size + 2 * quiet_zone;
+        int pixels = area_height / modules;
+
+        if(pixels > 4)
+        {
+            pixels = 4;
+        }
+
+        int side = modules * pixels;
+        int qr_x = 4;
+        int qr_y = area_top + (area_height - side) / 2;
+        ui::fill(qr_x, qr_y, side, side, ui::white);
+
+        for(int y = 0; y < size; ++y)
+        {
+            for(int x = 0; x < size; ++x)
+            {
+                if(otp_export::qr_module(qrcode, x, y))
+                {
+                    ui::fill(qr_x + (quiet_zone + x) * pixels, qr_y + (quiet_zone + y) * pixels, pixels, pixels,
+                             ui::qr_dark);
+                }
+            }
+        }
+
+        panel_x = qr_x + side + 8;
+    }
+
+    // Secret in groups of 4 characters, as many groups per line as fit.
+    int panel_width = 236 - panel_x;
+    ui::text(ui::font::body, has_qr ? "Secret key" : "Link too long for a QR code", panel_x, 30, ui::secondary);
+
+    int chars_per_line = (panel_width + 1) / 7;
+    int groups_per_line = (chars_per_line + 1) / 5;
+
+    if(groups_per_line < 1)
+    {
+        groups_per_line = 1;
+    }
+
+    int y = 44;
+
+    for(int start = 0; start < secret_size; start += groups_per_line * 4)
+    {
+        bn::string<40> line;
+
+        for(int group = 0; group < groups_per_line; ++group)
+        {
+            int group_start = start + group * 4;
+
+            if(group_start >= secret_size)
+            {
+                break;
+            }
+
+            if(group)
+            {
+                line += ' ';
+            }
+
+            for(int i = group_start; i < group_start + 4 && i < secret_size; ++i)
+            {
+                line += secret_text[i];
+            }
+        }
+
+        ui::text(ui::font::digits, line, panel_x, y, ui::ink);
+        y += 11;
+    }
+
+    ui::round_button(panel_x, 147, "B", ui::ink, ui::white);
+    ui::text(ui::font::body, "back", panel_x + 13, 148, ui::ink);
+
+    // Only the screen keeps it now.
+    vault::wipe(uri, sizeof(uri));
+    vault::wipe(qrcode, sizeof(qrcode));
+    vault::wipe(temp, sizeof(temp));
+    vault::wipe(secret_text, sizeof(secret_text));
+
+    frame_update();
+
+    while(! bn::keypad::b_pressed() && ! bn::keypad::a_pressed())
+    {
+        frame_update();
+    }
 }
 
 void run_settings_menu(account_list& accounts)
