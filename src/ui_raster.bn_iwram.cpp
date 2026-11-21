@@ -54,6 +54,32 @@ BN_CODE_IWRAM void fill(uint8_t* canvas, int x0, int y0, int x1, int y1, uint8_t
     }
 }
 
+BN_CODE_IWRAM void glyph16(uint8_t* canvas, const uint16_t* row_masks, int rows, int x, int y, uint8_t color)
+{
+    for(int row = 0; row < rows; ++row)
+    {
+        unsigned mask = row_masks[row];
+        int py = y + row;
+
+        if(! mask || unsigned(py) >= unsigned(screen_height))
+        {
+            continue;
+        }
+
+        uint8_t* row_base = canvas + (py >> 3) * tile_row_bytes + ((py & 7) << 3);
+
+        for(int column = 0; mask; ++column, mask >>= 1)
+        {
+            int px = x + column;
+
+            if((mask & 1) && unsigned(px) < unsigned(screen_width))
+            {
+                row_base[(px >> 3) * tile_bytes + (px & 7)] = color;
+            }
+        }
+    }
+}
+
 BN_CODE_IWRAM void glyph(uint8_t* canvas, const uint8_t* row_masks, int rows, int x, int y, int scale,
                          uint8_t color)
 {

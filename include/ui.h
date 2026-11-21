@@ -58,6 +58,7 @@ namespace ui
     {
         body,       // Butano common variable 8x16 font glyphs (stands in for "font_body8")
         digits,     // Butano common fixed 8x16 font glyphs, 7 px advance (stands in for "font_digits8")
+        code12,     // digits 0-9 only, 12 px tall / 10 px wide, built from "digits" (use scale 1)
     };
 
     enum class align : uint8_t

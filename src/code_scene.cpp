@@ -392,12 +392,12 @@ namespace
                 draw_cursor(y);
                 draw_badge(row_x + 12, y + 4, 14, item, true);
 
-                int code_width = ui::text_width(ui::font::digits, code_text, 2);
+                int code_width = ui::text_width(ui::font::code12, code_text);
                 int name_x = row_x + 12 + 14 + 5;
                 bn::string<24> name;
                 fitted_name(name, item.label, right - 4 - code_width - 6 - name_x);
                 ui::text(ui::font::body, name, name_x, y + 8, ui::ink);
-                ui::text(ui::font::digits, code_text, right - 4, y + 4, ui::ink, ui::selection_shine, 2,
+                ui::text(ui::font::code12, code_text, right - 4, y + 5, ui::ink, ui::selection_shine, 1,
                          ui::align::right);
             }
             else

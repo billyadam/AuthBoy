@@ -210,8 +210,55 @@ namespace
         }
     }
 
+    // "code12": the 7x6 digit glyphs stretched to 12x10 by repeating some rows / columns twice
+    // (bars and outer stems stay 2 px, the thin rows next to them 1 px), so the pixel style holds.
+    constexpr int code12_rows = 12;
+    constexpr int code12_advance = 12;     // 10 px glyph + 2 px gap
+    constexpr uint8_t code12_row_repeat[7] = { 2, 1, 2, 2, 2, 1, 2 };
+    constexpr uint8_t code12_column_repeat[6] = { 2, 1, 2, 2, 1, 2 };
+
+    uint16_t code12_masks[10][code12_rows];
+
+    void build_code12_masks()
+    {
+        for(int digit = 0; digit < 10; ++digit)
+        {
+            const uint8_t* source = glyph_masks[1]['0' + digit - 32];
+            int out_row = 0;
+
+            for(int row = 0; row < 7; ++row)
+            {
+                uint16_t wide = 0;
+                int out_column = 0;
+
+                for(int column = 0; column < 6; ++column)
+                {
+                    for(int i = 0; i < code12_column_repeat[column]; ++i)
+                    {
+                        if(source[row] & (1 << column))
+                        {
+                            wide |= uint16_t(1 << out_column);
+                        }
+
+                        ++out_column;
+                    }
+                }
+
+                for(int i = 0; i < code12_row_repeat[row]; ++i)
+                {
+                    code12_masks[digit][out_row++] = wide;
+                }
+            }
+        }
+    }
+
     int advance(font text_font, char c, int scale)
     {
+        if(text_font == font::code12)
+        {
+            return code12_advance;
+        }
+
         if(text_font == font::digits)
         {
             return digits_advance * scale;
@@ -226,6 +273,16 @@ namespace
 
         if(index == 0)
         {
+            return;
+        }
+
+        if(text_font == font::code12)
+        {
+            if(c >= '0' && c <= '9')
+            {
+                raster::glyph16(canvas, code12_masks[c - '0'], code12_rows, x, y, color);
+            }
+
             return;
         }
 
@@ -263,6 +320,7 @@ void init()
     digits_tiles = bn::sprite_items::common_fixed_8x16_font.tiles_item().tiles_ref().data();
     build_glyph_masks(0, body_tiles, body_fill_index, 0);
     build_glyph_masks(1, digits_tiles, digits_fill_index, 1);   // fixed font glyphs start one column in
+    build_code12_masks();
 
     // 8bpp tiles are counted in 4bpp units by Butano. No offset: the map indexes them directly.
     bg_tiles = bn::regular_bg_tiles_ptr::allocate(tile_count * 2, bn::bpp_mode::BPP_8, false);
@@ -356,7 +414,8 @@ int text_width(font text_font, const bn::string_view& text, int scale)
         width += advance(text_font, c, scale);
     }
 
-    return width > 0 ? width - scale : 0;     // no gap after the last glyph
+    int last_gap = text_font == font::code12 ? code12_advance - 10 : scale;
+    return width > 0 ? width - last_gap : 0;     // no gap after the last glyph
 }
 
 void text(font text_font, const bn::string_view& text, int x, int y, uint8_t color, int shadow, int scale,

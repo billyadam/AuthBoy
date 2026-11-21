@@ -20,6 +20,9 @@ namespace ui::raster
     // Fills [x0, x1) x [y0, y1), already clipped to the screen. Uses 32-bit writes where it can.
     BN_CODE_IWRAM void fill(uint8_t* canvas, int x0, int y0, int x1, int y1, uint8_t color);
 
+    // Draws one unscaled glyph up to 16 px wide from 16-bit row bitmasks, clipped to the screen.
+    BN_CODE_IWRAM void glyph16(uint8_t* canvas, const uint16_t* row_masks, int rows, int x, int y, uint8_t color);
+
     // Draws one glyph from its row bitmasks (bit n = column n), clipped to the screen.
     BN_CODE_IWRAM void glyph(uint8_t* canvas, const uint8_t* row_masks, int rows, int x, int y, int scale,
                              uint8_t color);
