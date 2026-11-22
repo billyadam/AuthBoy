@@ -5,6 +5,7 @@
 #include "bn_string.h"
 
 #include "ui.h"
+#include "version.h"
 
 namespace app::field_guide
 {
@@ -167,6 +168,7 @@ namespace
 
             ui::background();
             ui::header("Settings");
+            ui::text(ui::font::digits, app_version_label, 233, 8, ui::header_subtext, ui::no_shadow, 1, ui::align::right);
 
             ui::panel(4, 28, 232, 18, ui::info, false);
             ui::round_fill(8, 33, 8, 8, 4, ui::green);

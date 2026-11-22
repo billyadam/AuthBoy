@@ -5,6 +5,8 @@
 
 #include "bn_string.h"
 
+#include "version.h"
+
 namespace app::skin
 {
 
@@ -141,6 +143,7 @@ void skin_screen_painter::settings(const settings_state& state)
 
     _skin.background(0, 0, 240, 160);
     _skin.header("Settings", false);
+    _skin.header_counter(app_version_label);
     _skin.info_box("Password on: accounts encrypted");
     _skin.box(settings_x, settings_y, settings_width, settings_height(_skin));
 

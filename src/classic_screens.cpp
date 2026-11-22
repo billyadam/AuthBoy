@@ -7,6 +7,7 @@
 #include "bn_string.h"
 
 #include "ui.h"
+#include "version.h"
 
 namespace app::classic
 {
@@ -133,6 +134,7 @@ namespace
         {
             clear(0, 160);
             ui::classic_text(classic_font::small, "Settings", 0, -66);
+            ui::classic_text(classic_font::small, app_version_label, 116, -66, ui::align::right);
             ui::classic_text(classic_font::small, "Password on: accounts encrypted", 0, -46);
 
             for(int i = 0; i < settings_option_count; ++i)

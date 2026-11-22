@@ -15,6 +15,8 @@ A TOTP authenticator (like Google Authenticator) for the Game Boy Advance, built
 
 Personal project; not affiliated with Google or Nintendo.
 
+Current version: **1.0.0** (shown in Settings). See [CHANGELOG.md](CHANGELOG.md).
+
 ## Requirements
 
 - A cartridge or emulator with a **real-time clock (RTC)**. Some emulators only enable the
