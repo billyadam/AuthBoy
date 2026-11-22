@@ -182,7 +182,7 @@ namespace
             }
             else if(index == settings_option_theme)
             {
-                value = theme_short_name(state.accounts.theme);
+                value = theme_value_label(state.accounts.theme);
             }
 
             if(value)

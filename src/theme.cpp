@@ -93,7 +93,7 @@ const char* theme_name(ui_theme theme)
     }
 }
 
-const char* theme_short_name(ui_theme theme)
+const char* theme_value_label(ui_theme theme)
 {
     switch(theme)
     {
@@ -102,16 +102,16 @@ const char* theme_short_name(ui_theme theme)
         return "CLASSIC";
 
     case ui_theme::net_link:
-        return "NET";
+        return "NET LINK";
 
     case ui_theme::pocket_lcd:
-        return "LCD";
+        return "POCKET LCD";
 
     case ui_theme::phosphor:
-        return "AMBER";
+        return "PHOSPHOR";
 
     default:
-        return "FIELD";
+        return "FIELD GUIDE";
     }
 }
 

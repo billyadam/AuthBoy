@@ -238,7 +238,7 @@ namespace app
     const theme_painters& painters();
 
     const char* theme_name(ui_theme theme);         // "Field Guide", "Classic", ...
-    const char* theme_short_name(ui_theme theme);   // "FIELD", "CLASSIC", ... (Settings value pills)
+    const char* theme_value_label(ui_theme theme);  // "FIELD GUIDE", "CLASSIC", ... (Settings value)
 
     // The theme after this one in Settings: Classic, Field Guide, Net Link, Pocket LCD, Phosphor.
     ui_theme next_theme(ui_theme theme);
