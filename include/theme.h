@@ -206,6 +206,10 @@ namespace app
         // "Unlocking..." style screen shown during slow work (the CPU is busy, nothing animates).
         virtual void busy(const char* title) = 0;
 
+        // The busy screen's logo after the work: open (password accepted), or closed and moved
+        // shake px sideways (wrong password).
+        virtual void busy_logo(bool open, int shake) = 0;
+
         // Message with 1-3 lines and an A button label; blink(false) hides the "next" arrow.
         virtual void message(const char* const* lines, int line_count, const char* a_label) = 0;
         virtual void message_blink(const char* const* lines, int line_count, const char* a_label,
@@ -243,6 +247,9 @@ namespace app
 
     // The theme after this one in Settings: Classic, Field Guide, Net Link, Pocket LCD, Phosphor.
     ui_theme next_theme(ui_theme theme);
+
+    // Settings value for the sort order: "A - Z", "Z - A" or "CUSTOM".
+    const char* sort_label(const account_list& accounts);
 
     namespace field_guide
     {

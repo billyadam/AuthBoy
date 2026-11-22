@@ -203,7 +203,7 @@ namespace ui
     void key_cap(int x, int y, int width, int height, char label, bool selected, uint8_t panel_color);
 
     // "Unlocking..." style box. The bar block is static (the CPU is busy while it's shown).
-    void busy_box(const bn::string_view& title, const bn::string_view& subtitle);
+    void busy_box(const bn::string_view& title, const bn::string_view& subtitle, int y = 70);
 
     // Stable badge color for an account name.
     uint8_t badge_color(const char* name);
@@ -227,6 +227,19 @@ namespace ui
 
     void fade(int x, int y, int width, int height, fade_style style);
     void checker(int x, int y, int width, int height, uint8_t color);
+
+    // ---- Logo ("Lock Boy": a padlock whose body is a handheld) ----
+    enum class logo_frame : uint8_t
+    {
+        closed,     // 16x16
+        open,       // 16x16, shackle lifted
+        big,        // 32x32, closed
+        big_open,   // 32x32, shackle lifted
+    };
+
+    // Top-left at x, y. colors[1..6]: outline, shackle, body, body shade, screen, A button
+    // (palette indices; colors[0] is unused, the background shows through).
+    void logo(logo_frame frame, int x, int y, const uint8_t* colors);
 
     // ---- Classic theme text ----
     // Butano's 8x16 sprite fonts drawn whole, as the original sprite text was: white with the

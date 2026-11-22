@@ -39,7 +39,7 @@ namespace
     constexpr layout_info name_info = { 22, 63, 67, 4 + 2 + 9, 63 + 2 + 3, 21, 15, 19, 13, 134, 137, 148 };
     constexpr layout_info base32_info = { 28, 62, 70, 4 + 2 + 4, 62 + 2 + 3, 27, 16, 25, 14, 136, 139, 150 };
 
-    constexpr ui::hint type_hints[] = { { "A", "type" }, { "B", "delete" }, { "START", "done" } };
+    constexpr ui::hint type_hints[] = { { "A", "type" }, { "B", "delete" }, { "STA", "done" } };
     constexpr ui::hint name_row_2_hints[] = { { "R", "space" }, { "L", "cancel" } };
     constexpr ui::hint base32_row_2_hints[] = { { "L", "cancel" } };
 
@@ -66,7 +66,7 @@ namespace
 
             if(state.layout == keyboard_layout::name)
             {
-                int pill_width = ui::pill(8, 54, "SELECT", ui::white, ui::ink);
+                int pill_width = ui::pill(8, 54, "SEL", ui::white, ui::ink);
                 ui::text(ui::font::body, "case", 8 + pill_width + 3, 55, ui::ink);
             }
 

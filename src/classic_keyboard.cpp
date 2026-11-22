@@ -150,12 +150,12 @@ namespace
         // Help / message lines
         static void draw_footer(const keyboard_state& state)
         {
-            ui::classic_text(classic_font::small, state.message ? state.message : "A: type   B: delete   START: done", 0,
+            ui::classic_text(classic_font::small, state.message ? state.message : "A: type   B: delete   STA: done", 0,
                              footer_row_1_y);
 
             if(state.layout == keyboard_layout::name)
             {
-                ui::classic_text(classic_font::small, "SELECT: abc/ABC  R: space  L: cancel", 0, footer_row_2_y);
+                ui::classic_text(classic_font::small, "SEL: abc/ABC   R: space   L: cancel", 0, footer_row_2_y);
             }
             else if(state.layout == keyboard_layout::base32)
             {

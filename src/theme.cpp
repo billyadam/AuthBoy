@@ -115,6 +115,11 @@ const char* theme_value_label(ui_theme theme)
     }
 }
 
+const char* sort_label(const account_list& accounts)
+{
+    return accounts.custom_order ? "CUSTOM" : accounts.reverse_order ? "Z - A" : "A - Z";
+}
+
 ui_theme next_theme(ui_theme theme)
 {
     for(int i = 0; i < ui_theme_count; ++i)

@@ -15,6 +15,9 @@ namespace
     // Settings menu box
     constexpr int settings_x = 4, settings_y = 50, settings_width = 232, settings_step = 16;
 
+    // Logo above the unlocking box
+    constexpr int busy_logo_x = 104, busy_logo_y = 32;     // 32x32, centered above the box
+
     // Welcome dialog box
     constexpr int welcome_x = 4, welcome_y = 100, welcome_width = 232, welcome_height = 56;
 
@@ -41,6 +44,22 @@ void skin_screen_painter::busy(const char* title)
     _skin.background(0, 0, 240, 160);
     _skin.header("AuthBoy", false);
     _skin.busy(title, "This takes a few seconds");
+    ui::logo(ui::logo_frame::big, busy_logo_x, busy_logo_y, _skin.logo_colors());
+}
+
+void skin_screen_painter::busy_logo(bool open, int shake)
+{
+    _skin.background(busy_logo_x - 2, busy_logo_y, 36, 32);
+    ui::logo(open ? ui::logo_frame::big_open : ui::logo_frame::big, busy_logo_x + shake, busy_logo_y,
+             _skin.logo_colors());
+}
+
+void logo_title_row(const skin& look, const char* title, int scale, uint8_t color)
+{
+    int title_width = ui::text_width(ui::font::body, title, scale);
+    int x = (240 - (32 + 8 + title_width)) / 2;
+    ui::logo(ui::logo_frame::big, x, 28, look.logo_colors());
+    ui::text(ui::font::body, title, x + 40, 28 + (32 - 7 * scale) / 2, color, ui::no_shadow, scale);
 }
 
 void skin_screen_painter::message(const char* const* lines, int line_count, const char* a_label)
@@ -140,7 +159,7 @@ void skin_screen_painter::settings_item(const settings_state& state, int index)
 
     if(index == settings_option_sort)
     {
-        value = state.accounts.custom_order ? "CUSTOM" : "A-Z";
+        value = sort_label(state.accounts);
     }
     else if(index == settings_option_theme)
     {

@@ -445,7 +445,7 @@ namespace
             if(s.accounts.count == 0)
             {
                 ui::text(ui::font::body, "No accounts yet", 120, 78, ui::ink, ui::light_shadow, 1, ui::align::center);
-                ui::text(ui::font::body, "START: add an account", 120, 92, ui::secondary, ui::no_shadow, 1,
+                ui::text(ui::font::body, "STA: add an account", 120, 92, ui::secondary, ui::no_shadow, 1,
                          ui::align::center);
                 return;
             }
@@ -501,7 +501,7 @@ namespace
             }
             else
             {
-                constexpr ui::hint hints[] = { { "START", "add" }, { "SELECT", "settings" } };
+                constexpr ui::hint hints[] = { { "STA", "add" }, { "SEL", "settings" } };
                 ui::footer_hints(footer_text_y, hints, 2);
             }
         }

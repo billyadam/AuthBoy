@@ -329,6 +329,17 @@ int main()
     check(list.theme == app::ui_theme::classic && ! list.custom_order && lists_equal(list, expected),
           "theme: classic bits read back");
 
+    // Sort order Z-A: saved in the header flags; older saves (no flag) stay A-Z.
+    check(! list.reverse_order, "z-a: off by default");
+    list.reverse_order = true;
+    app::save_accounts(list);
+    app::load_accounts(list);
+    check(list.reverse_order && ! list.custom_order && lists_equal(list, expected), "z-a: saved and loaded");
+    list.reverse_order = false;
+    app::save_accounts(list);
+    app::load_accounts(list);
+    check(! list.reverse_order, "z-a: back to A-Z saved");
+
     // ---- Version 3 encrypted save (current release) upgrades ----
     erase_sram();
     {
@@ -476,6 +487,20 @@ int main()
         }
 
         check(ok, "a-z: case-insensitive, ties keep stored order");
+
+        list.reverse_order = true;
+        app::display_order(list, order);
+        const char* reversed[] = { "Zoom", "github", "GitHub", "discord", "Bank", "aws", "apple", "Amazon" };
+        bool z_ok = true;
+
+        for(int i = 0; i < count; ++i)
+        {
+            z_ok = z_ok && std::strcmp(list.items[order[i]].label, reversed[i]) == 0;
+        }
+
+        check(z_ok, "z-a: reversed, ties still keep stored order");
+        check(app::display_position(list, 5) == 0, "z-a: display_position follows the order");
+        list.reverse_order = false;
 
         std::strcpy(list.items[5].label, "Aardvark");    // was Zoom
         app::display_order(list, order);

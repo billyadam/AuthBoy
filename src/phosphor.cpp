@@ -272,7 +272,7 @@ namespace
 
         void busy(const bn::string_view& title, const bn::string_view& subtitle) const override
         {
-            constexpr int x = 24, y = 52;
+            constexpr int x = 24, y = 70;     // below the 32x32 logo
             box(x, y, 192, 62);
             ui::text(ui::font::body, upper(title), 120, y + 3 + 9, amber, ui::no_shadow, 1, ui::align::center);
 
@@ -285,8 +285,14 @@ namespace
         void welcome_band() const override
         {
             ui::text(ui::font::body, "WELCOME TO", 120, 18, dim, ui::no_shadow, 1, ui::align::center);
-            ui::text(ui::font::body, "AUTHBOY", 120, 32, amber, ui::no_shadow, 3, ui::align::center);
+            logo_title_row(*this, "AUTHBOY", 3, amber);
             dashed_rule(66);
+        }
+
+        const uint8_t* logo_colors() const override
+        {
+            static constexpr uint8_t logo[7] = { 0, track, dim, frame, track, amber, amber };
+            return logo;
         }
 
         void input_box(int x, int y, int width, int height) const override

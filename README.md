@@ -5,7 +5,7 @@ A TOTP authenticator (like Google Authenticator) for the Game Boy Advance, built
 
 - 6-digit TOTP codes (RFC 6238, SHA-1, 30 s), shown as a scrolling list with a shared countdown
 - Up to 256 accounts, entered with an on-screen Base32 keyboard
-- Rename, change key, delete; sort A-Z or in a custom order
+- Rename, change key, delete; sort A-Z, Z-A or in a custom order
 - Show secret: after re-entering the password, shows the account's `otpauth://` QR Code
   (scan it to move the account to a phone app) and its Base32 secret
 - Five themes, chosen in Settings: Classic Original (the original look), Field Guide (default), Net Link,
@@ -56,7 +56,7 @@ make -C tests
 |---|---|
 | List | Up/Down: select, L/R: page up/down, A: options (rename, change key, show secret, move, delete), START: add, SELECT: settings |
 | Keyboard | D-pad: move, A: type, B: delete, START: done, L: cancel (name: SELECT case, R space) |
-| Settings | Sort A-Z / Custom, Theme (A cycles through the five), Lock now, Change password |
+| Settings | Sort A-Z / Z-A / Custom, Theme (A cycles through the five), Lock now, Change password |
 
 ## Security notes
 

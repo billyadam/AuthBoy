@@ -28,6 +28,7 @@ namespace
     constexpr int32_t save_version = 4;
     constexpr uint32_t flag_encrypted = 1;
     constexpr uint32_t flag_custom_order = 2;   // unset = sort A-Z (the default)
+    constexpr uint32_t flag_reverse_order = 4;  // sorted Z-A (builds that don't know it show A-Z)
 
     // Bits 8-15: the theme (version 4 saves from before themes have 0 = Field Guide there, and
     // builds that don't know these bits ignore them). Unknown values also mean Field Guide.
@@ -303,6 +304,7 @@ namespace
         block.header.version = save_version;
         block.header.save_counter = ++state.save_counter;
         block.header.flags = (accounts.custom_order ? flag_custom_order : 0) |
+                             (accounts.reverse_order ? flag_reverse_order : 0) |
                              (uint32_t(accounts.theme) << theme_shift & theme_mask);
 
         payload& data = block.data;
@@ -442,6 +444,7 @@ void load_accounts(account_list& accounts)
 {
     wipe_list(accounts);
     accounts.custom_order = false;
+    accounts.reverse_order = false;
     accounts.theme = ui_theme::field_guide;     // also for version 2 / 3 saves (no theme in them)
     state = {};
 
@@ -453,6 +456,7 @@ void load_accounts(account_list& accounts)
 
     const save_header& header = block.header;
     accounts.custom_order = (header.flags & flag_custom_order) != 0;
+    accounts.reverse_order = (header.flags & flag_reverse_order) != 0;
     accounts.theme = theme_from_flags(header.flags);
 
     if(header.flags & flag_encrypted)
@@ -607,8 +611,8 @@ namespace
         return c >= 'A' && c <= 'Z' ? char(c - 'A' + 'a') : c;
     }
 
-    // Case-insensitive label comparison; ties keep the stored order so sorting is stable.
-    bool sorts_before(const account_list& accounts, int a, int b)
+    // Case-insensitive label comparison: < 0, 0 or > 0.
+    int compare_labels(const account_list& accounts, int a, int b)
     {
         const char* x = accounts.items[a].label;
         const char* y = accounts.items[b].label;
@@ -620,7 +624,7 @@ namespace
 
             if(cx != cy)
             {
-                return cx < cy;
+                return cx < cy ? -1 : 1;
             }
 
             if(! cx)
@@ -629,7 +633,14 @@ namespace
             }
         }
 
-        return a < b;
+        return 0;
+    }
+
+    // Ties keep the stored order so sorting is stable.
+    bool sorts_before(const account_list& accounts, int a, int b)
+    {
+        int result = compare_labels(accounts, a, b);
+        return result ? result < 0 : a < b;
     }
 
     // A-Z order cache: re-sorted only when the labels, their order or the count change.
@@ -734,9 +745,35 @@ void display_order(const account_list& accounts, int order[max_accounts])
         cache_valid = true;
     }
 
-    for(int i = 0; i < accounts.count; ++i)
+    if(! accounts.reverse_order)
     {
-        order[i] = cached_order[i];
+        for(int i = 0; i < accounts.count; ++i)
+        {
+            order[i] = cached_order[i];
+        }
+
+        return;
+    }
+
+    // Z-A: the A-Z order backwards, but accounts with the same label keep their stored order.
+    int out = 0;
+    int end = accounts.count;
+
+    while(end > 0)
+    {
+        int start = end - 1;
+
+        while(start > 0 && compare_labels(accounts, cached_order[start - 1], cached_order[start]) == 0)
+        {
+            --start;
+        }
+
+        for(int i = start; i < end; ++i)
+        {
+            order[out++] = cached_order[i];
+        }
+
+        end = start;
     }
 }
 

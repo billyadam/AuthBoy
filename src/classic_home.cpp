@@ -187,8 +187,8 @@ namespace
             if(s.accounts.count == 0)
             {
                 ui::classic_text(classic_font::small, "No accounts yet", 0, -4);
-                ui::classic_text(classic_font::small, "START: add an account", 0, 16);
-                ui::classic_text(classic_font::small, "SELECT: settings", 0, 66);
+                ui::classic_text(classic_font::small, "STA: add an account", 0, 16);
+                ui::classic_text(classic_font::small, "SEL: settings", 0, 66);
                 return;
             }
 
@@ -241,7 +241,7 @@ namespace
             }
             else
             {
-                footer_text += s.moving ? "Up/Down: move   A: done" : "START: add   SELECT: settings";
+                footer_text += s.moving ? "Up/Down: move   A: done" : "STA: add   SEL: settings";
             }
 
             footer_text += s.first_visible + s.visible_count < s.accounts.count ? "   v" : "    ";

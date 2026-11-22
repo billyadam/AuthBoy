@@ -252,7 +252,7 @@ namespace
 
         void busy(const bn::string_view& title, const bn::string_view& subtitle) const override
         {
-            constexpr int x = 24, y = 52;
+            constexpr int x = 24, y = 70;     // below the 32x32 logo
             box(x, y, 192, 62);
             ui::text(ui::font::body, upper(title), 120, y + 2 + 9, dark, ui::no_shadow, 1, ui::align::center);
 
@@ -266,8 +266,14 @@ namespace
         {
             ui::fill(0, 0, 240, 76, dark);
             ui::text(ui::font::body, "Welcome to", 120, 16, light, ui::no_shadow, 1, ui::align::center);
-            ui::text(ui::font::body, "AUTHBOY", 120, 32, screen, ui::no_shadow, 3, ui::align::center);
+            logo_title_row(*this, "AUTHBOY", 3, screen);
             segments(36, 64, 168, 4, 4, 6, mid);
+        }
+
+        const uint8_t* logo_colors() const override
+        {
+            static constexpr uint8_t logo[7] = { 0, dark, light, mid, dark, light, screen };
+            return logo;
         }
 
         void input_box(int x, int y, int width, int height) const override

@@ -15,6 +15,15 @@ namespace
 {
     using ui::classic_font;
 
+    // Lock Boy logo in the Classic colors: black outline and white shackle (like the text),
+    // key-cursor blue body with the popup navy as its shade, light blue screen, white A button.
+    constexpr uint8_t logo_colors[7] = {
+        0, ui::black, ui::white, ui::classic_key, ui::classic_panel, ui::classic_key_edge, ui::white
+    };
+    constexpr int logo_x = 104;             // 32x32, centered
+    constexpr int welcome_logo_y = 6;
+    constexpr int busy_logo_y = 26;
+
     constexpr int settings_first_y = -30;
     constexpr int settings_spacing = 18;
 
@@ -56,8 +65,15 @@ namespace
         void busy(const char* title) override
         {
             clear(0, 160);
+            ui::logo(ui::logo_frame::big, logo_x, busy_logo_y, logo_colors);
             ui::classic_text(classic_font::small, title, 0, -8);
             ui::classic_text(classic_font::small, "This takes a few seconds", 0, 12);
+        }
+
+        void busy_logo(bool open, int shake) override
+        {
+            ui::fill(logo_x - 2, busy_logo_y, 36, 32, ui::classic_backdrop);
+            ui::logo(open ? ui::logo_frame::big_open : ui::logo_frame::big, logo_x + shake, busy_logo_y, logo_colors);
         }
 
         void message(const char* const* lines, int line_count, const char* a_label) override
@@ -70,9 +86,15 @@ namespace
         {
         }
 
+        // The message screen's layout, lines moved down a little under the logo.
         void welcome(const char* line_1, const char* line_2) override
         {
-            message_lines("Welcome to AuthBoy", line_1, line_2, "continue");
+            clear(0, 160);
+            ui::logo(ui::logo_frame::big, logo_x, welcome_logo_y, logo_colors);
+            ui::classic_text(classic_font::small, "Welcome to AuthBoy", 0, -30);
+            ui::classic_text(classic_font::small, line_1, 0, -8);
+            ui::classic_text(classic_font::small, line_2, 0, 12);
+            ui::classic_text(classic_font::small, "A: continue", 0, 50);
         }
 
         void welcome_blink(bool) override
@@ -131,7 +153,8 @@ namespace
             {
 
             case settings_option_sort:
-                line += state.accounts.custom_order ? "Sort: Custom" : "Sort: A-Z";
+                line += "Sort: ";
+                line += state.accounts.custom_order ? "Custom" : sort_label(state.accounts);
                 break;
 
             case settings_option_theme:

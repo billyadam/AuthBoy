@@ -116,7 +116,10 @@ namespace app::skin
 
         // ---- Unlocking / welcome ----
         virtual void busy(const bn::string_view& title, const bn::string_view& subtitle) const = 0;
-        virtual void welcome_band() const = 0;          // everything above the dialog box
+        virtual void welcome_band() const = 0;          // everything above the dialog box, logo included
+
+        // Logo colors (palette indices): unused, outline, shackle, body, body shade, screen, A button.
+        virtual const uint8_t* logo_colors() const = 0;
 
         // ---- Keyboard ----
         virtual void input_box(int x, int y, int width, int height) const = 0;
@@ -229,6 +232,7 @@ namespace app::skin
         }
 
         void busy(const char* title) override;
+        void busy_logo(bool open, int shake) override;
         void message(const char* const* lines, int line_count, const char* a_label) override;
         void message_blink(const char* const* lines, int line_count, const char* a_label,
                            bool arrow_visible) override;
@@ -251,6 +255,9 @@ namespace app::skin
 
     void footer_hints(const skin& look, int label_y, const hint* hints, int count);
     void footer_message(const skin& look, int label_y, const bn::string_view& message);
+
+    // Logo and title in one row centered as a group, top y 28 (Welcome of LCD / Phosphor).
+    void logo_title_row(const skin& look, const char* title, int scale, uint8_t color);
 
     // "[A] label" + arrow, right-aligned to right_x (inside a box).
     void continue_hint(const skin& look, int right_x, int label_y, const char* label, bool arrow_visible);

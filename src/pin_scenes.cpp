@@ -26,6 +26,31 @@ namespace
         frame_update();
     }
 
+    // After checking a password on the busy screen: the logo opens and holds for 20 frames, or
+    // shakes 1 px left and right for 8 frames.
+    void show_busy_result(pin_result result)
+    {
+        screen_painter& painter = painters().screens;
+
+        if(result == pin_result::ok)
+        {
+            painter.busy_logo(true, 0);
+
+            for(int frame = 0; frame < 20; ++frame)
+            {
+                frame_update();
+            }
+        }
+        else if(result == pin_result::wrong_pin)
+        {
+            for(int frame = 0; frame < 8; ++frame)
+            {
+                painter.busy_logo(false, frame % 2 ? -1 : 1);
+                frame_update();
+            }
+        }
+    }
+
     // Message with up to three lines; waits for A (returns true) or B (returns false).
     bool message_screen(const char* line_1, const char* line_2, const char* line_3, const char* a_label)
     {
@@ -133,6 +158,7 @@ namespace
 
             show_busy("Checking...");
             pin_result result = verify_pin(pin.data(), pin.size());
+            show_busy_result(result);
 
             if(result == pin_result::ok)
             {
@@ -250,6 +276,7 @@ void run_unlock_scene(account_list& accounts)
 
         show_busy("Unlocking...");
         pin_result result = unlock_accounts(pin.data(), pin.size(), accounts);
+        show_busy_result(result);
 
         if(result == pin_result::wrong_pin)
         {
@@ -331,7 +358,22 @@ void run_settings_menu(account_list& accounts)
 
             case settings_option_sort:
                 // Only changes how the list is shown; the custom order is kept.
-                accounts.custom_order = ! accounts.custom_order;
+                // A-Z -> Z-A -> Custom -> A-Z
+                if(accounts.custom_order)
+                {
+                    accounts.custom_order = false;
+                    accounts.reverse_order = false;
+                }
+                else if(! accounts.reverse_order)
+                {
+                    accounts.reverse_order = true;
+                }
+                else
+                {
+                    accounts.custom_order = true;
+                    accounts.reverse_order = false;
+                }
+
                 save_accounts(accounts);
                 painter.settings_item(state, settings_option_sort);
                 break;

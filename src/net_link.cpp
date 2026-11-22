@@ -338,7 +338,7 @@ namespace
 
         void busy(const bn::string_view& title, const bn::string_view& subtitle) const override
         {
-            constexpr int x = 24, y = 52;
+            constexpr int x = 24, y = 70;     // below the 32x32 logo
             box(x, y, 192, 62);
             ui::text(ui::font::title12, title, 120, y + 2 + 7, text_white, ui::no_shadow, 1, ui::align::center);
 
@@ -355,6 +355,13 @@ namespace
             ui::text(ui::font::body, "Welcome to", 10, 13, secondary);
             parallelogram(0, 26, 176, 36, 14, cyan, true);
             ui::text(ui::font::body, "AuthBoy", 10, 33, deep, ui::no_shadow, 3);
+            ui::logo(ui::logo_frame::big, 192, 28, logo_colors());     // on the band right of the tab
+        }
+
+        const uint8_t* logo_colors() const override
+        {
+            static constexpr uint8_t logo[7] = { 0, deep, secondary, chip, chip_dark, cyan, green };
+            return logo;
         }
 
         void input_box(int x, int y, int width, int height) const override

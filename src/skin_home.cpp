@@ -495,7 +495,7 @@ void skin_home_painter::draw_list(home_state& s)
     if(s.accounts.count == 0)
     {
         ui::text(ui::font::body, "No accounts yet", 120, 78, _skin.colors.text, ui::no_shadow, 1, ui::align::center);
-        ui::text(ui::font::body, "START: add an account", 120, 92, _skin.colors.dim, ui::no_shadow, 1,
+        ui::text(ui::font::body, "STA: add an account", 120, 92, _skin.colors.dim, ui::no_shadow, 1,
                  ui::align::center);
         return;
     }
@@ -539,7 +539,7 @@ void skin_home_painter::draw_footer(const home_state& s)
     }
     else
     {
-        constexpr hint hints[] = { { "START", "add" }, { "SELECT", "settings" } };
+        constexpr hint hints[] = { { "STA", "add" }, { "SEL", "settings" } };
         footer_hints(_skin, footer_top + 3, hints, 2);
     }
 }

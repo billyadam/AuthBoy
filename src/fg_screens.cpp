@@ -16,6 +16,10 @@ namespace
     // Settings menu box (screen 05)
     constexpr int settings_box_x = 4, settings_box_y = 52, settings_box_width = 232;
 
+    // Logo colors: outline, shackle, body, body shade, screen, A button
+    constexpr uint8_t logo_colors[7] = { 0, ui::ink, ui::bevel, ui::red, ui::header_shadow, ui::info, ui::selection };
+    constexpr int busy_logo_x = 104, busy_logo_y = 32;     // 32x32, centered above the box
+
     // Welcome dialogue box
     constexpr int welcome_x = 4, welcome_y = 100, welcome_width = 232, welcome_height = 56;
 
@@ -55,6 +59,14 @@ namespace
             ui::background();
             ui::header("AuthBoy");
             ui::busy_box(title, "This takes a few seconds");
+            ui::logo(ui::logo_frame::big, busy_logo_x, busy_logo_y, logo_colors);
+        }
+
+        void busy_logo(bool open, int shake) override
+        {
+            ui::stripes(busy_logo_x - 2, busy_logo_y, 36, 32);
+            ui::logo(open ? ui::logo_frame::big_open : ui::logo_frame::big, busy_logo_x + shake, busy_logo_y,
+                     logo_colors);
         }
 
         void message(const char* const* lines, int line_count, const char* a_label) override
@@ -85,8 +97,14 @@ namespace
             ui::fill(0, 1, 240, 1, ui::header_light);
             ui::fill(0, 64, 240, 4, ui::hero_accent);
             ui::fill(0, 76, 240, 2, ui::header_shadow);
-            ui::text(ui::font::body, "Welcome to", 120, 18, ui::header_subtext, ui::no_shadow, 1, ui::align::center);
-            ui::text(ui::font::body, "AuthBoy", 120, 28, ui::white, ui::header_shadow, 4, ui::align::center, 2);
+            ui::text(ui::font::body, "Welcome to", 120, 14, ui::header_subtext, ui::no_shadow, 1, ui::align::center);
+
+            // Logo and title in one row, centered as a group, top y 28.
+            int title_width = ui::text_width(ui::font::body, "AuthBoy", 4);
+            int x = (240 - (32 + 8 + title_width)) / 2;
+            ui::logo(ui::logo_frame::big, x, 28, logo_colors);
+            ui::text(ui::font::body, "AuthBoy", x + 40, 28 + (32 - 28) / 2, ui::white, ui::header_shadow, 4,
+                     ui::align::left, 2);
 
             ui::panel(welcome_x, welcome_y, welcome_width, welcome_height, ui::white, true);
             ui::text(ui::font::body, line_1, welcome_x + 6, welcome_y + 8, ui::ink, ui::light_shadow);
@@ -177,7 +195,7 @@ namespace
 
             if(index == settings_option_sort)
             {
-                value = state.accounts.custom_order ? "CUSTOM" : "A-Z";
+                value = sort_label(state.accounts);
             }
             else if(index == settings_option_theme)
             {

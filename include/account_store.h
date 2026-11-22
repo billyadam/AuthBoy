@@ -37,6 +37,9 @@ namespace app
         // false: the list is shown sorted A-Z (case-insensitive); true: shown in stored order.
         bool custom_order = false;
 
+        // With custom_order false: sorted Z-A instead of A-Z.
+        bool reverse_order = false;
+
         // Kept when the store is locked (only the accounts are cleared).
         ui_theme theme = ui_theme::field_guide;
     };

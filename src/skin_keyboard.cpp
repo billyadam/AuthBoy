@@ -33,7 +33,7 @@ namespace
     constexpr layout_info name_info = { 22, 63, 67, 4 + 9, 63 + 3, 21, 15, 19, 13, 134 };
     constexpr layout_info base32_info = { 28, 62, 70, 4 + 4, 62 + 3, 27, 16, 25, 14, 136 };
 
-    constexpr hint type_hints[] = { { "A", "type" }, { "B", "delete" }, { "START", "done" } };
+    constexpr hint type_hints[] = { { "A", "type" }, { "B", "delete" }, { "STA", "done" } };
     constexpr hint name_row_2_hints[] = { { "R", "space" }, { "L", "cancel" } };
     constexpr hint base32_row_2_hints[] = { { "L", "cancel" } };
 
@@ -57,7 +57,7 @@ void skin_keyboard_painter::draw_all(const keyboard_state& state)
 
     if(state.layout == keyboard_layout::name)
     {
-        int width = _skin.pill(8, 55, "SELECT", false);
+        int width = _skin.pill(8, 55, "SEL", false);
         ui::text(ui::font::body, "case", 8 + width + 3, 55, _skin.colors.hint);
     }
 
