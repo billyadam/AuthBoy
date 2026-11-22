@@ -23,6 +23,12 @@ int main()
     app::set_theme(accounts.theme);     // known before unlocking: the save header isn't encrypted
     int selected = 0;   // display position in the list
 
+    // Title screen at boot. First run gets the same screen as part of password setup instead.
+    if(app::pin_enabled())
+    {
+        app::run_title_scene();
+    }
+
     while(true)
     {
         // A PIN is mandatory: first boot (or an old unencrypted save) goes straight to setup.

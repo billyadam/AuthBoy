@@ -211,8 +211,9 @@ namespace app
         virtual void message_blink(const char* const* lines, int line_count, const char* a_label,
                                    bool arrow_visible) = 0;
 
-        // First run: welcome, "set a password".
-        virtual void welcome() = 0;
+        // Title / welcome screen: the big AuthBoy title over a two-line dialog ("Set a password..."
+        // on first run, "Welcome back!" at boot).
+        virtual void welcome(const char* line_1, const char* line_2) = 0;
         virtual void welcome_blink(bool arrow_visible) = 0;
 
         virtual void show_secret(const secret_view& view) = 0;
@@ -237,8 +238,8 @@ namespace app
     ui_theme current_theme();
     const theme_painters& painters();
 
-    const char* theme_name(ui_theme theme);         // "Field Guide", "Classic", ...
-    const char* theme_value_label(ui_theme theme);  // "FIELD GUIDE", "CLASSIC", ... (Settings value)
+    const char* theme_name(ui_theme theme);         // "Field Guide", "Classic Original", ...
+    const char* theme_value_label(ui_theme theme);  // "FIELD GUIDE", "CLASSIC ORIGINAL", ... (Settings value)
 
     // The theme after this one in Settings: Classic, Field Guide, Net Link, Pocket LCD, Phosphor.
     ui_theme next_theme(ui_theme theme);

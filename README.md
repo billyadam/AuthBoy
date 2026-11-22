@@ -8,7 +8,7 @@ A TOTP authenticator (like Google Authenticator) for the Game Boy Advance, built
 - Rename, change key, delete; sort A-Z or in a custom order
 - Show secret: after re-entering the password, shows the account's `otpauth://` QR Code
   (scan it to move the account to a phone app) and its Base32 secret
-- Five themes, chosen in Settings: Classic (the original look), Field Guide (default), Net Link,
+- Five themes, chosen in Settings: Classic Original (the original look), Field Guide (default), Net Link,
   Pocket LCD and Phosphor
 - Mandatory PIN: accounts are encrypted in save memory with XChaCha20-Poly1305,
   key derived from the PIN with Argon2id (via [Monocypher](https://monocypher.org/))

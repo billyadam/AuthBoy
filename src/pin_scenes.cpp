@@ -60,16 +60,16 @@ namespace
         }
     }
 
-    // First run: welcome, waits for A.
-    void welcome_screen()
+    // Title / welcome screen; waits for A or START.
+    void welcome_screen(const char* line_1, const char* line_2)
     {
         screen_painter& painter = painters().screens;
-        painter.welcome();
+        painter.welcome(line_1, line_2);
         frame_update();
 
         int blink_counter = 0;
 
-        while(! bn::keypad::a_pressed())
+        while(! bn::keypad::a_pressed() && ! bn::keypad::start_pressed())
         {
             ++blink_counter;
 
@@ -214,12 +214,17 @@ namespace
 
 void run_pin_setup_scene(account_list& accounts)
 {
-    welcome_screen();
+    welcome_screen("Set a password to encrypt", "your accounts");
 
     while(! pin_enabled())
     {
         choose_new_pin(accounts, true);
     }
+}
+
+void run_title_scene()
+{
+    welcome_screen("Welcome back!", "Enter your password to unlock");
 }
 
 void run_unlock_scene(account_list& accounts)

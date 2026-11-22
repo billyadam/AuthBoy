@@ -232,7 +232,7 @@ namespace app::skin
         void message(const char* const* lines, int line_count, const char* a_label) override;
         void message_blink(const char* const* lines, int line_count, const char* a_label,
                            bool arrow_visible) override;
-        void welcome() override;
+        void welcome(const char* line_1, const char* line_2) override;
         void welcome_blink(bool arrow_visible) override;
         void show_secret(const secret_view& view) override;
         void settings(const settings_state& state) override;

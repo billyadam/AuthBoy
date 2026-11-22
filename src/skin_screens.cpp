@@ -65,22 +65,22 @@ void skin_screen_painter::message_blink(const char* const*, int line_count, cons
     continue_hint(_skin, box.x + box.width - _skin.box_border() - 8, box.label_y, a_label, arrow_visible);
 }
 
-void skin_screen_painter::welcome()
+void skin_screen_painter::welcome(const char* line_1, const char* line_2)
 {
     int border = _skin.box_border();
     _skin.background(0, 0, 240, 160);
     _skin.welcome_band();
     _skin.box(welcome_x, welcome_y, welcome_width, welcome_height);
-    ui::text(ui::font::body, "Set a password to encrypt", welcome_x + border + 8, welcome_y + border + 10,
-             _skin.colors.box);
-    ui::text(ui::font::body, "your accounts", welcome_x + border + 8, welcome_y + border + 22, _skin.colors.box);
+    ui::text(ui::font::body, line_1, welcome_x + border + 8, welcome_y + border + 7, _skin.colors.box);
+    ui::text(ui::font::body, line_2, welcome_x + border + 8, welcome_y + border + 19, _skin.colors.box);
     welcome_blink(true);
 }
 
 void skin_screen_painter::welcome_blink(bool arrow_visible)
 {
     int border = _skin.box_border();
-    continue_hint(_skin, welcome_x + welcome_width - border - 8, welcome_y + border + 32, "continue", arrow_visible);
+    continue_hint(_skin, welcome_x + welcome_width - border - 8, welcome_y + welcome_height - border - 12, "continue",
+                  arrow_visible);
 }
 
 // Header with the account name, no footer: the QR Code uses the 136 px below the header.

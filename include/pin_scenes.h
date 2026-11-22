@@ -9,6 +9,9 @@ namespace app
     // Encrypts any existing (unencrypted) accounts.
     void run_pin_setup_scene(account_list& accounts);
 
+    // Title screen at boot when a password is already set: "Welcome back!", waits for A / START.
+    void run_title_scene();
+
     // Asks for the PIN until the accounts are unlocked.
     void run_unlock_scene(account_list& accounts);
 

@@ -70,9 +70,9 @@ namespace
         {
         }
 
-        void welcome() override
+        void welcome(const char* line_1, const char* line_2) override
         {
-            message_lines("Welcome to AuthBoy", "Set a password to encrypt", "your accounts", "continue");
+            message_lines("Welcome to AuthBoy", line_1, line_2, "continue");
         }
 
         void welcome_blink(bool) override

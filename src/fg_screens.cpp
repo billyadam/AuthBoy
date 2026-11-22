@@ -78,7 +78,7 @@ namespace
             draw_continue(box.x + box.width - 8, box.button_y, a_label, arrow_visible);
         }
 
-        void welcome() override
+        void welcome(const char* line_1, const char* line_2) override
         {
             ui::background();
             ui::fill(0, 0, 240, 76, ui::red);
@@ -89,15 +89,14 @@ namespace
             ui::text(ui::font::body, "AuthBoy", 120, 28, ui::white, ui::header_shadow, 4, ui::align::center, 2);
 
             ui::panel(welcome_x, welcome_y, welcome_width, welcome_height, ui::white, true);
-            ui::text(ui::font::body, "Set a password to encrypt", welcome_x + 6, welcome_y + 10, ui::ink,
-                     ui::light_shadow);
-            ui::text(ui::font::body, "your accounts", welcome_x + 6, welcome_y + 22, ui::ink, ui::light_shadow);
+            ui::text(ui::font::body, line_1, welcome_x + 6, welcome_y + 8, ui::ink, ui::light_shadow);
+            ui::text(ui::font::body, line_2, welcome_x + 6, welcome_y + 20, ui::ink, ui::light_shadow);
             welcome_blink(true);
         }
 
         void welcome_blink(bool arrow_visible) override
         {
-            draw_continue(welcome_x + welcome_width - 8, welcome_y + 34, "continue", arrow_visible);
+            draw_continue(welcome_x + welcome_width - 8, welcome_y + 38, "continue", arrow_visible);
         }
 
         // Header with the account name, no footer: the QR Code uses the 136 px below the header.

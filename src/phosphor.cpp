@@ -251,7 +251,7 @@ namespace
 
             if(info.value)
             {
-                bn::string<16> value = "[";
+                bn::string<32> value = "[";
                 value += info.value;
                 value += ']';
                 ui::text(ui::font::digits, value, x + width - 4, info.y + 4, text, ui::no_shadow, 1, ui::align::right);

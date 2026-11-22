@@ -77,7 +77,7 @@ const char* theme_name(ui_theme theme)
     {
 
     case ui_theme::classic:
-        return "Classic";
+        return "Classic Original";
 
     case ui_theme::net_link:
         return "Net Link";
@@ -99,7 +99,7 @@ const char* theme_value_label(ui_theme theme)
     {
 
     case ui_theme::classic:
-        return "CLASSIC";
+        return "CLASSIC ORIGINAL";
 
     case ui_theme::net_link:
         return "NET LINK";
