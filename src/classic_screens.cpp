@@ -24,7 +24,7 @@ namespace
     constexpr int welcome_logo_y = 6;
     constexpr int busy_logo_y = 26;
 
-    constexpr int settings_first_y = -30;
+    constexpr int settings_first_y = -22;     // below the "Password on" line
     constexpr int settings_spacing = 18;
 
     void clear(int top, int bottom)
@@ -133,6 +133,7 @@ namespace
         {
             clear(0, 160);
             ui::classic_text(classic_font::small, "Settings", 0, -66);
+            ui::classic_text(classic_font::small, "Password on: accounts encrypted", 0, -46);
 
             for(int i = 0; i < settings_option_count; ++i)
             {
