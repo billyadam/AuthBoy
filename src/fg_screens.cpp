@@ -175,7 +175,7 @@ namespace
             ui::panel(4, 28, 232, 18, ui::info, false);
             ui::round_fill(8, 33, 8, 8, 4, ui::green);
             ui::fill(10, 34, 4, 2, ui::green_shine);
-            ui::text(ui::font::body, "Password on: accounts encrypted", 18, 33, ui::ink);
+            ui::text(ui::font::body, accounts_stored_label(state.accounts), 18, 33, ui::ink);
 
             ui::panel(settings_box_x, settings_box_y, settings_box_width, box_height, ui::white, true);
 

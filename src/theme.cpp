@@ -121,6 +121,19 @@ const char* sort_label(const account_list& accounts)
     return accounts.custom_order ? "CUSTOM" : accounts.reverse_order ? "Z - A" : "A - Z";
 }
 
+bn::string<32> accounts_stored_label(const account_list& accounts)
+{
+    if(accounts.count == 0)
+    {
+        return "No accounts stored";
+    }
+
+    bn::string<32> text;
+    append_padded(text, accounts.count, 1);
+    text += accounts.count == 1 ? " account stored" : " accounts stored";
+    return text;
+}
+
 ui_theme next_theme(ui_theme theme)
 {
     for(int i = 0; i < ui_theme_count; ++i)

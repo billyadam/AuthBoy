@@ -16,6 +16,8 @@ The save format has its own version number (currently 4) and changes independent
   format stays 4: v1.0.0 still loads these saves, and saves without clock settings keep
   UTC+7 with no correction
 - Settings: Set clock row (Field Guide's menu rows are 2 px closer to fit five)
+- Settings shows how many accounts are stored ("34 accounts stored") instead of "Password on"
+- Classic Original: welcome and unlocking screens centered, settings list evenly spaced
 
 ## v1.0.0 (2026-11-23)
 

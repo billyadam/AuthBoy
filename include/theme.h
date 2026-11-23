@@ -286,6 +286,9 @@ namespace app
     // The theme after this one in Settings: Classic, Field Guide, Net Link, Pocket LCD, Phosphor.
     ui_theme next_theme(ui_theme theme);
 
+    // Settings info line: "34 accounts stored", "1 account stored", "No accounts stored".
+    bn::string<32> accounts_stored_label(const account_list& accounts);
+
     // Settings value for the sort order: "A - Z", "Z - A" or "CUSTOM".
     const char* sort_label(const account_list& accounts);
 

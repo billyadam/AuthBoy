@@ -147,7 +147,7 @@ void skin_screen_painter::settings(const settings_state& state)
     _skin.background(0, 0, 240, 160);
     _skin.header("Settings", false);
     _skin.header_counter(app_version_label);
-    _skin.info_box("Password on: accounts encrypted");
+    _skin.info_box(accounts_stored_label(state.accounts));
     _skin.box(settings_x, settings_y, settings_width, settings_height(_skin));
 
     for(int i = 0; i < settings_option_count; ++i)

@@ -22,10 +22,10 @@ namespace
         0, ui::black, ui::white, ui::classic_key, ui::classic_panel, ui::classic_key_edge, ui::white
     };
     constexpr int logo_x = 104;             // 32x32, centered
-    constexpr int welcome_logo_y = 6;
-    constexpr int busy_logo_y = 26;
+    constexpr int welcome_logo_y = 14;        // with the lines below: centered on the screen
+    constexpr int busy_logo_y = 43;           // logo + two lines centered on the screen
 
-    constexpr int settings_first_y = -22;     // below the "Password on" line
+    constexpr int settings_first_y = -26;     // below the "Password on" line, gaps even with the items
     constexpr int settings_spacing = 18;
 
     void clear(int top, int bottom)
@@ -94,8 +94,8 @@ namespace
         {
             clear(0, 160);
             ui::logo(ui::logo_frame::big, logo_x, busy_logo_y, logo_colors);
-            ui::classic_text(classic_font::small, title, 0, -8);
-            ui::classic_text(classic_font::small, "This takes a few seconds", 0, 12);
+            ui::classic_text(classic_font::small, title, 0, 9);
+            ui::classic_text(classic_font::small, "This takes a few seconds", 0, 29);
         }
 
         void busy_logo(bool open, int shake) override
@@ -119,10 +119,10 @@ namespace
         {
             clear(0, 160);
             ui::logo(ui::logo_frame::big, logo_x, welcome_logo_y, logo_colors);
-            ui::classic_text(classic_font::small, "Welcome to AuthBoy", 0, -30);
-            ui::classic_text(classic_font::small, line_1, 0, -8);
-            ui::classic_text(classic_font::small, line_2, 0, 12);
-            ui::classic_text(classic_font::small, "A: continue", 0, 50);
+            ui::classic_text(classic_font::small, "Welcome to AuthBoy", 0, -22);
+            ui::classic_text(classic_font::small, line_1, 0, 0);
+            ui::classic_text(classic_font::small, line_2, 0, 20);
+            ui::classic_text(classic_font::small, "A: continue", 0, 58);
         }
 
         void welcome_blink(bool) override
@@ -162,7 +162,7 @@ namespace
             clear(0, 160);
             ui::classic_text(classic_font::small, "Settings", 0, -66);
             ui::classic_text(classic_font::small, app_version_label, 116, -66, ui::align::right);
-            ui::classic_text(classic_font::small, "Password on: accounts encrypted", 0, -46);
+            ui::classic_text(classic_font::small, accounts_stored_label(state.accounts), 0, -46);
 
             for(int i = 0; i < settings_option_count; ++i)
             {
