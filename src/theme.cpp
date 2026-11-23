@@ -123,14 +123,11 @@ const char* sort_label(const account_list& accounts)
 
 bn::string<32> accounts_stored_label(const account_list& accounts)
 {
-    if(accounts.count == 0)
-    {
-        return "No accounts stored";
-    }
-
     bn::string<32> text;
     append_padded(text, accounts.count, 1);
-    text += accounts.count == 1 ? " account stored" : " accounts stored";
+    text += accounts.count == 1 ? " account stored (max: " : " accounts stored (max: ";
+    append_padded(text, max_accounts, 1);
+    text += ')';
     return text;
 }
 
