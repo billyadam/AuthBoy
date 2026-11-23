@@ -24,6 +24,11 @@ int main()
     app::set_clock_settings(accounts.clock);    // also known before unlocking
     int selected = 0;   // display position in the list
 
+    if(app::unencrypted_save_rejected())
+    {
+        app::run_rejected_save_scene();
+    }
+
     // Title screen at boot. First run gets the same screen as part of password setup instead.
     if(app::pin_enabled())
     {
@@ -32,7 +37,7 @@ int main()
 
     while(true)
     {
-        // A PIN is mandatory: first boot (or an old unencrypted save) goes straight to setup.
+        // A PIN is mandatory: a fresh save goes straight to setup.
         if(! app::pin_enabled())
         {
             app::run_pin_setup_scene(accounts);

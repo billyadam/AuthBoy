@@ -234,7 +234,7 @@ namespace app
     constexpr int about_security_page = 1;      // pages 2 and 3: paragraphs of text
     constexpr int about_security_page_count = 2;
     constexpr int about_item_count = 4;         // items on pages 4 and 5
-    constexpr int about_security_paragraph_count = 4;
+    constexpr int about_security_paragraph_count = 5;
 
     inline bool about_is_security_page(int page)
     {
@@ -244,8 +244,8 @@ namespace app
     // Paragraphs of a security page: [first, first + count).
     inline void about_security_paragraphs(int page, int& first, int& count)
     {
-        first = page == about_security_page ? 0 : 1;
-        count = page == about_security_page ? 1 : about_security_paragraph_count - 1;
+        first = page == about_security_page ? 0 : 2;
+        count = page == about_security_page ? 2 : about_security_paragraph_count - 2;
     }
     constexpr const char* about_url = "https://github.com/billyadam/AuthBoy";
     constexpr const char* about_author = "by Billy Adam";
@@ -282,7 +282,8 @@ namespace app
         // shake px sideways (wrong password).
         virtual void busy_logo(bool open, int shake) = 0;
 
-        // Message with 1-3 lines and an A button label; blink(false) hides the "next" arrow.
+        // Message with 1-3 lines and an optional A button label (nullptr hides the prompt);
+        // blink(false) hides the "next" arrow.
         virtual void message(const char* const* lines, int line_count, const char* a_label) = 0;
         virtual void message_blink(const char* const* lines, int line_count, const char* a_label,
                                    bool arrow_visible) = 0;

@@ -1,5 +1,5 @@
 // Host-side tests for the account store (src/account_store.cpp) with an in-memory SRAM:
-// version 4 two-slot saves, upgrades from version 3 / 2 saves, torn-write recovery,
+// version 4 two-slot saves, encrypted version 3 upgrades, unencrypted save rejection, torn-write recovery,
 // encryption with 256 accounts and the A-Z display order.
 // Build & run:  make -C tests
 
@@ -191,13 +191,75 @@ namespace
         return flags;
     }
 
-    // Rewrites a slot's header flags and fixes its slot checksum (as another build would write it).
-    void set_v4_flags(int slot, uint32_t flags)
+    // Re-seals an encrypted test save after a header change, as another build would do.
+    void rewrite_v4_header(int slot, uint32_t flags, uint32_t counter)
     {
         uint8_t* base = bn::sram::data + slot * slot_size;
-        std::memcpy(base + v4_flags_offset, &flags, sizeof(flags));
+        header_v3 header = slot_header(slot);
+        vault::kdf_params params = { header.kdf_blocks, header.kdf_passes };
+        void* work = std::aligned_alloc(8, size_t(vault::work_area_size(params)));
+        uint8_t key[vault::key_size];
+        bool derived = vault::derive_key("METAPASS", 8, header.salt, params, work, key);
+        std::free(work);
+        bool opened = derived && vault::open(key, header.nonce, base, sizeof(header),
+                                            base + v4_payload_offset, v4_payload_size, base + sizeof(header));
+        if(! opened)
+        {
+            std::fprintf(stderr, "Invalid encrypted metadata test fixture\n");
+            std::exit(1);
+        }
+
+        header.flags = flags;
+        header.save_counter = counter;
+        app::random_bytes(header.nonce, sizeof(header.nonce));
+        std::memcpy(base, &header, sizeof(header));
+        vault::seal(key, header.nonce, base, sizeof(header), base + v4_payload_offset, v4_payload_size,
+                    base + sizeof(header));
+        vault::wipe(key, sizeof(key));
         uint32_t sum = v4_slot_checksum(slot);
         std::memcpy(base + v4_slot_checksum_offset, &sum, sizeof(sum));
+    }
+
+    void set_v4_flags(int slot, uint32_t flags)
+    {
+        rewrite_v4_header(slot, flags, slot_header(slot).save_counter);
+    }
+
+    // Construct a plaintext version 4 save independently: the app no longer writes these.
+    void write_unencrypted_v4(int slot, uint32_t counter)
+    {
+        uint8_t* base = bn::sram::data + slot * slot_size;
+        std::memset(base, 0, slot_size);
+        header_v3 header = {};
+        std::memcpy(header.magic, "GBATOTP", 8);
+        header.version = 4;
+        header.save_counter = counter;
+        std::memcpy(base, &header, sizeof(header));
+        std::memcpy(base + v4_payload_offset, &expected.count, sizeof(expected.count));
+        std::memcpy(base + v4_payload_offset + sizeof(expected.count), expected.items, sizeof(expected.items));
+        uint32_t checksum = fnv(2166136261u, base + v4_payload_offset, v4_payload_size);
+        std::memcpy(base + sizeof(header) + vault::mac_size, &checksum, sizeof(checksum));
+        uint32_t sum = v4_slot_checksum(slot);
+        std::memcpy(base + v4_slot_checksum_offset, &sum, sizeof(sum));
+    }
+
+    void check_unencrypted_rejected(const char* name)
+    {
+        uint8_t before[sizeof(bn::sram::data)];
+        std::memcpy(before, bn::sram::data, sizeof(before));
+        list = expected;     // A load must clear any previously visible secrets too.
+        app::load_accounts(list);
+        static const app::account empty_items[app::max_accounts] = {};
+        bool rejected = app::unencrypted_save_rejected() && ! app::pin_enabled() && list.count == 0 &&
+                        std::memcmp(list.items, empty_items, sizeof(empty_items)) == 0;
+        rejected = rejected && app::set_pin("NEWPASS9", 8, expected) == app::pin_result::unsupported_save;
+        rejected = rejected && app::unlock_accounts("NEWPASS9", 8, list) == app::pin_result::unsupported_save;
+        rejected = rejected && app::verify_pin("NEWPASS9", 8) == app::pin_result::unsupported_save;
+        app::save_accounts(expected);
+        app::lock_accounts(list);
+        app::save_accounts(expected);
+        check(rejected && app::unencrypted_save_rejected() &&
+              std::memcmp(before, bn::sram::data, sizeof(before)) == 0, name);
     }
 
     // Clock record: right after the version 4 block in each slot.
@@ -217,10 +279,7 @@ namespace
     {
         uint8_t* target = bn::sram::data + to * slot_size;
         std::memmove(target, bn::sram::data + from * slot_size, v4_block_size);
-        uint32_t counter = slot_counter(from) + 1;
-        std::memcpy(target + v4_save_counter_offset, &counter, sizeof(counter));
-        uint32_t sum = v4_slot_checksum(to);
-        std::memcpy(target + v4_slot_checksum_offset, &sum, sizeof(sum));
+        rewrite_v4_header(to, v4_flags(to), slot_counter(from) + 1);
     }
 
     bool clock_is(const app::clock_settings& settings, int zone, int correction)
@@ -241,7 +300,18 @@ int main()
     // ---- Blank SRAM ----
     erase_sram();
     app::load_accounts(list);
-    check(! app::pin_enabled() && list.count == 0, "blank sram: no password, no accounts");
+    check(! app::unencrypted_save_rejected() && ! app::pin_enabled() && list.count == 0,
+          "blank sram: allowed, no password, no accounts");
+
+    // No caller can accidentally create a plaintext save before password setup.
+    fill_expected(3);
+    app::save_accounts(expected);
+    bool blank = true;
+    for(uint8_t byte : bn::sram::data)
+    {
+        blank = blank && byte == 0xFF;
+    }
+    check(blank, "save before password setup leaves SRAM untouched");
 
     // ---- First password: written to slot 0, then slots alternate ----
     fill_expected(3);
@@ -328,13 +398,44 @@ int main()
           std::strcmp(list.items[0].label, "after-recovery") == 0, "theme: unknown value, accounts still unlock");
     list.custom_order = false;
 
-    // Unencrypted version 4 saves: from a build before themes (theme bits 0) and with garbage there.
+    // Unencrypted version 4 saves: either slot, both slots, damaged, or beside encrypted data.
+    for(int slot : { 0, 1 })
+    {
+        erase_sram();
+        fill_expected(6);
+        write_unencrypted_v4(slot, 9);
+        check_unencrypted_rejected(slot == 0 ? "v4 plaintext slot 0: rejected, no accounts or writes" :
+                                              "v4 plaintext slot 1: rejected, no accounts or writes");
+    }
+
+    write_unencrypted_v4(0, 10);
+    check_unencrypted_rejected("v4 both plaintext slots: rejected without changes");
+    erase_sram();
+    write_unencrypted_v4(0, 1);
+    bn::sram::data[500] ^= 1;
+    check_unencrypted_rejected("damaged recognizable plaintext save is not treated as blank");
+
+    for(int plain_slot : { 0, 1 })
+    {
+        erase_sram();
+        app::load_accounts(list);
+        list = expected;
+        app::set_pin("METAPASS", 8, list);
+        app::save_accounts(list);     // encrypted copies in both slots
+        write_unencrypted_v4(plain_slot, 0);    // older than the encrypted copy
+        check_unencrypted_rejected("older plaintext slot is rejected beside a newer encrypted save");
+        write_unencrypted_v4(plain_slot, 99);
+        check_unencrypted_rejected("newer plaintext slot is rejected beside an older encrypted save");
+    }
+
+    // Encrypted metadata compatibility: pre-theme headers and unknown theme bits.
     erase_sram();
     app::load_accounts(list);
     fill_expected(6);
     list = expected;
     list.theme = app::ui_theme::classic;
-    app::save_accounts(list);       // no password yet: unencrypted, slot 0
+    check(! app::unencrypted_save_rejected() && app::set_pin("METAPASS", 8, list) == app::pin_result::ok,
+          "fresh save after rejection can set a password");
     {
         uint32_t stored;
         std::memcpy(&stored, bn::sram::data + v4_slot_checksum_offset, sizeof(stored));
@@ -342,34 +443,32 @@ int main()
               "theme: test helper matches the slot layout");
     }
 
-    set_v4_flags(0, 2);             // custom order, no theme bits
-    app::load_accounts(list);
-    check(! app::pin_enabled() && list.theme == app::ui_theme::field_guide && list.custom_order &&
+    set_v4_flags(0, 1 | 2);             // encrypted, custom order, no theme bits
+    check(reload_and_unlock("METAPASS") && list.theme == app::ui_theme::field_guide && list.custom_order &&
           lists_equal(list, expected), "theme: pre-theme v4 save -> Field Guide, accounts loaded");
 
-    set_v4_flags(0, 2 | 0xAB00 | 0x40000);
-    app::load_accounts(list);
-    check(list.theme == app::ui_theme::field_guide && list.custom_order && lists_equal(list, expected),
+    set_v4_flags(0, 1 | 2 | 0xAB00 | 0x40000);
+    check(reload_and_unlock("METAPASS") && list.theme == app::ui_theme::field_guide && list.custom_order &&
+          lists_equal(list, expected),
           "theme: garbage theme bits -> Field Guide, accounts loaded");
 
-    set_v4_flags(0, 1u << 8);
-    app::load_accounts(list);
-    check(list.theme == app::ui_theme::classic && ! list.custom_order && lists_equal(list, expected),
+    set_v4_flags(0, 1 | (1u << 8));
+    check(reload_and_unlock("METAPASS") && list.theme == app::ui_theme::classic && ! list.custom_order &&
+          lists_equal(list, expected),
           "theme: classic bits read back");
 
     // Sort order Z-A: saved in the header flags; older saves (no flag) stay A-Z.
     check(! list.reverse_order, "z-a: off by default");
     list.reverse_order = true;
     app::save_accounts(list);
-    app::load_accounts(list);
-    check(list.reverse_order && ! list.custom_order && lists_equal(list, expected), "z-a: saved and loaded");
+    check(reload_and_unlock("METAPASS") && list.reverse_order && ! list.custom_order && lists_equal(list, expected),
+          "z-a: saved and loaded");
     list.reverse_order = false;
     app::save_accounts(list);
-    app::load_accounts(list);
-    check(! list.reverse_order, "z-a: back to A-Z saved");
+    check(reload_and_unlock("METAPASS") && ! list.reverse_order, "z-a: back to A-Z saved");
 
     // ---- Clock settings (record after the block) ----
-    check(clock_is(list.clock, 7 * 60, 0), "clock: save without a record -> UTC+7, no correction");
+    check(clock_is(list.clock, 7 * 60, 0), "clock: defaults are UTC+7, no correction");
     list.clock.zone_minutes = 5 * 60 + 30;
     list.clock.correction_seconds = -1234567;
     app::save_accounts(list);
@@ -382,38 +481,36 @@ int main()
               "clock: record right after the block");
     }
 
-    app::load_accounts(list);
-    check(clock_is(list.clock, 5 * 60 + 30, -1234567) && lists_equal(list, expected), "clock: saved and loaded");
+    check(reload_and_unlock("METAPASS") && clock_is(list.clock, 5 * 60 + 30, -1234567) &&
+          lists_equal(list, expected), "clock: saved and loaded");
 
     // An older build saves over the other slot: its record is stale, so the defaults apply.
     save_as_old_build(clock_slot, 1 - clock_slot);
-    app::load_accounts(list);
-    check(clock_is(list.clock, 7 * 60, 0) && lists_equal(list, expected),
+    check(reload_and_unlock("METAPASS") && clock_is(list.clock, 7 * 60, 0) && lists_equal(list, expected),
           "clock: older build's save -> stale record ignored, defaults");
 
     // And this build saving again brings the record back.
     list.clock.zone_minutes = -3 * 60 - 30;
     list.clock.correction_seconds = 42;
     app::save_accounts(list);
-    app::load_accounts(list);
-    check(clock_is(list.clock, -3 * 60 - 30, 42), "clock: record written again after an older build's save");
+    check(reload_and_unlock("METAPASS") && clock_is(list.clock, -3 * 60 - 30, 42),
+          "clock: record written again after an older build's save");
 
     // Damaged record: defaults, the accounts still load.
     clock_slot = slot_counter(0) > slot_counter(1) ? 0 : 1;
     bn::sram::data[clock_slot * slot_size + v4_block_size + 9] ^= 0x10;
-    app::load_accounts(list);
-    check(clock_is(list.clock, 7 * 60, 0) && lists_equal(list, expected), "clock: damaged record -> defaults");
+    check(reload_and_unlock("METAPASS") && clock_is(list.clock, 7 * 60, 0) && lists_equal(list, expected),
+          "clock: damaged record -> defaults");
 
     // A zone out of range (with a valid checksum) is not used.
     list.clock.zone_minutes = 15 * 60;
     list.clock.correction_seconds = 5;
     app::save_accounts(list);
-    app::load_accounts(list);
-    check(clock_is(list.clock, 7 * 60, 0), "clock: zone out of range -> defaults");
+    check(reload_and_unlock("METAPASS") && clock_is(list.clock, 7 * 60, 0), "clock: zone out of range -> defaults");
     list.clock.zone_minutes = 7 * 60 + 7;
     app::save_accounts(list);
-    app::load_accounts(list);
-    check(clock_is(list.clock, 7 * 60, 0), "clock: zone not in 15 minute steps -> defaults");
+    check(reload_and_unlock("METAPASS") && clock_is(list.clock, 7 * 60, 0),
+          "clock: zone not in 15 minute steps -> defaults");
 
     // Encrypted: known before unlocking, and kept when locking.
     list.clock.zone_minutes = -12 * 60;
@@ -430,7 +527,7 @@ int main()
     app::save_accounts(list);
     check(reload_and_unlock("CLOCKPW1") && clock_is(list.clock, 14 * 60, -9), "clock: UTC+14 saved encrypted");
 
-    // ---- Version 3 encrypted save (current release) upgrades ----
+    // ---- Version 3 encrypted save upgrades ----
     erase_sram();
     {
         static block_v3 old = {};
@@ -508,9 +605,18 @@ int main()
         std::memcpy(bn::sram::data, &old, sizeof(old));
     }
 
+    check_unencrypted_rejected("v3 plaintext: rejected, no accounts or writes");
+
+    // A prior build may already have migrated this save but left the plaintext v3 copy.
+    uint8_t plaintext_v3[sizeof(block_v3)];
+    std::memcpy(plaintext_v3, bn::sram::data, sizeof(plaintext_v3));
+    erase_sram();
     app::load_accounts(list);
-    check(! app::pin_enabled() && lists_equal(list, expected) && list.theme == app::ui_theme::field_guide,
-          "v3 unencrypted: accounts loaded, setup needed, Field Guide");
+    list = expected;
+    app::set_pin("METAPASS", 8, list);
+    app::save_accounts(list);
+    std::memcpy(bn::sram::data, plaintext_v3, sizeof(plaintext_v3));
+    check_unencrypted_rejected("v3 plaintext beside encrypted v4: rejected without changes");
 
     erase_sram();
     {
@@ -529,12 +635,17 @@ int main()
         std::memcpy(bn::sram::data, &old, sizeof(old));
     }
 
+    check_unencrypted_rejected("v2 plaintext: rejected, no accounts or writes");
+
+    uint8_t plaintext_v2[sizeof(block_v2)];
+    std::memcpy(plaintext_v2, bn::sram::data, sizeof(plaintext_v2));
+    erase_sram();
     app::load_accounts(list);
-    check(! app::pin_enabled() && lists_equal(list, expected) && list.theme == app::ui_theme::field_guide,
-          "v2: accounts loaded, Field Guide");
-    check(app::set_pin("NEWPASS9", 8, list) == app::pin_result::ok && slot_header(1).version == 4,
-          "v2: setting a password writes slot 1");
-    check(reload_and_unlock("newpass9") && lists_equal(list, expected), "v2: upgraded and encrypted");
+    list = expected;
+    app::set_pin("METAPASS", 8, list);
+    app::save_accounts(list);
+    std::memcpy(bn::sram::data, plaintext_v2, sizeof(plaintext_v2));
+    check_unencrypted_rejected("v2 plaintext beside encrypted v4: rejected without changes");
 
     // ---- 256 accounts ----
     erase_sram();

@@ -82,9 +82,12 @@ namespace
             ui::classic_text(classic_font::small, line_3, 0, 4);
         }
 
-        bn::string<32> buttons = "A: ";
-        buttons += a_label;
-        ui::classic_text(classic_font::small, buttons, 0, 50);
+        if(a_label)
+        {
+            bn::string<32> buttons = "A: ";
+            buttons += a_label;
+            ui::classic_text(classic_font::small, buttons, 0, 50);
+        }
     }
 
     class screen_painter_impl final : public screen_painter
@@ -170,7 +173,7 @@ namespace
                 settings_item(state, i);
             }
 
-            ui::classic_text(classic_font::small, "A: choose   SEL: about   B: back", 0, 66);
+            ui::classic_text(classic_font::small, "A: choose   B: back   SEL: about", 0, 66);
         }
 
         // Header line with the page counter; page 1: QR Code on the left, the logo and text on

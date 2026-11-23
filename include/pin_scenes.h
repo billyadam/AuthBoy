@@ -6,8 +6,11 @@
 namespace app
 {
     // Mandatory first-time PIN setup: welcome screen, then new PIN + confirmation until set.
-    // Encrypts any existing (unencrypted) accounts.
+    // Only offered for a fresh save, never for a rejected unencrypted save.
     void run_pin_setup_scene(account_list& accounts);
+
+    // Explains why an unencrypted save cannot be used; waits for power-off without writing SRAM.
+    [[noreturn]] void run_rejected_save_scene();
 
     // Title screen at boot when a password is already set: "Welcome back!", waits for A / START.
     void run_title_scene();

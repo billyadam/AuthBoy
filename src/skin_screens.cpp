@@ -81,13 +81,19 @@ void skin_screen_painter::message(const char* const* lines, int line_count, cons
                  _skin.colors.box);
     }
 
-    continue_hint(_skin, box.x + box.width - _skin.box_border() - 8, box.label_y, a_label, true);
+    if(a_label)
+    {
+        continue_hint(_skin, box.x + box.width - _skin.box_border() - 8, box.label_y, a_label, true);
+    }
 }
 
 void skin_screen_painter::message_blink(const char* const*, int line_count, const char* a_label, bool arrow_visible)
 {
     message_box box = message_geometry(_skin, line_count);
-    continue_hint(_skin, box.x + box.width - _skin.box_border() - 8, box.label_y, a_label, arrow_visible);
+    if(a_label)
+    {
+        continue_hint(_skin, box.x + box.width - _skin.box_border() - 8, box.label_y, a_label, arrow_visible);
+    }
 }
 
 void skin_screen_painter::welcome(const char* line_1, const char* line_2)
@@ -143,7 +149,7 @@ void skin_screen_painter::show_secret(const secret_view& view)
 
 void skin_screen_painter::settings(const settings_state& state)
 {
-    constexpr hint footer[] = { { "A", "choose" }, { "SEL", "about" }, { "B", "back" } };
+    constexpr hint footer[] = { { "A", "choose" }, { "B", "back" }, { "SEL", "about" } };
 
     _skin.background(0, 0, 240, 160);
     _skin.header("Settings", false);

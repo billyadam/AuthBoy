@@ -58,10 +58,12 @@ namespace app
     // Swaps two items in the stored (custom) order.
     void swap_accounts(account_list& accounts, int a, int b);
 
-    // Reads SRAM. If the save is PIN-protected the store becomes locked and the list stays
-    // empty until unlock_accounts succeeds. A missing or corrupt save gives an empty list.
+    // Reads encrypted SRAM saves, keeping the list empty until unlock_accounts succeeds.
+    // Unencrypted saves are rejected without modification; a missing or corrupt save gives
+    // an empty list. Check unencrypted_save_rejected() before offering first-time setup.
     void load_accounts(account_list& accounts);
 
+    bool unencrypted_save_rejected();
     bool pin_enabled();
     bool locked();
 
@@ -70,6 +72,7 @@ namespace app
         ok,
         wrong_pin,
         out_of_memory,
+        unsupported_save,
     };
 
     // Derives the key from the PIN and decrypts the accounts into the list.
@@ -84,7 +87,8 @@ namespace app
     // Forgets the key and clears the list from memory. The store must then be unlocked again.
     void lock_accounts(account_list& accounts);
 
-    // Saves the list (encrypted with the current key if a PIN is set).
+    // Saves the list encrypted. Does nothing before password setup, while locked, or when
+    // an unencrypted save was rejected.
     void save_accounts(const account_list& accounts);
 
     // How long the last PIN key derivation took, in milliseconds.

@@ -85,13 +85,19 @@ namespace
                 ui::text(ui::font::body, lines[i], box.x + 6, box.y + 10 + i * 12, ui::ink, ui::light_shadow);
             }
 
-            draw_continue(box.x + box.width - 8, box.button_y, a_label, true);
+            if(a_label)
+            {
+                draw_continue(box.x + box.width - 8, box.button_y, a_label, true);
+            }
         }
 
         void message_blink(const char* const*, int line_count, const char* a_label, bool arrow_visible) override
         {
             message_box box = message_geometry(line_count);
-            draw_continue(box.x + box.width - 8, box.button_y, a_label, arrow_visible);
+            if(a_label)
+            {
+                draw_continue(box.x + box.width - 8, box.button_y, a_label, arrow_visible);
+            }
         }
 
         void welcome(const char* line_1, const char* line_2) override
@@ -166,7 +172,7 @@ namespace
 
         void settings(const settings_state& state) override
         {
-            constexpr ui::hint footer[] = { { "A", "choose" }, { "SEL", "about" }, { "B", "back" } };
+            constexpr ui::hint footer[] = { { "A", "choose" }, { "B", "back" }, { "SEL", "about" } };
             constexpr int box_height = 9 + settings_option_count * settings_step + 1;
 
             ui::background();

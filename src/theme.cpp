@@ -312,9 +312,10 @@ const char* const about_security_text[about_security_paragraph_count] = {
     "Your accounts are encrypted with your password, but AuthBoy hasn't had a professional "
     "security audit, so don't count on it being safer than other 2FA apps like, for example, "
     "Google Authenticator or Authy.",
-    "A copied .sav / .srm file can't be opened without your password. An emulator save state "
-    "made while unlocked can, so avoid save states.",
-    "Don't make this your only 2FA: keep a backup elsewhere.",
+    "A copied .sav / .srm lets someone guess passwords offline. Use a long, random, unique password.",
+    "An emulator save state made while unlocked can contain unencrypted accounts, so avoid save states.",
+    "Don't make this your only 2FA: keep a backup elsewhere, along with your recovery codes. "
+    "AuthBoy can't recover a forgotten password.",
     "How it's encrypted: next page.",
 };
 

@@ -22,9 +22,9 @@ namespace
     constexpr char save_magic[8] = { 'G', 'B', 'A', 'T', 'O', 'T', 'P', 0 };
 
     // Version 1: early settings-only layout (ignored).
-    // Version 2: plain accounts (16 slots) with checksum. Still loaded, upgraded on next save.
+    // Version 2: plain accounts (16 slots) with checksum. Rejected.
     // Version 3: header + optional XChaCha20-Poly1305 encrypted payload, 16 slots, at offset 0.
-    //            Still loaded, upgraded on next save.
+    //            Only encrypted saves are loaded and upgraded on next save.
     // Version 4: like version 3 with 256 slots, written alternately to two SRAM slots so an
     //            interrupted save never destroys the previous one.
     constexpr int32_t save_version = 4;
@@ -74,7 +74,7 @@ namespace
     {
         save_header header;
         uint8_t mac[vault::mac_size];   // encrypted saves
-        uint32_t checksum;              // unencrypted saves: FNV-1a of the plaintext payload
+        uint32_t checksum;              // reserved field from older unencrypted saves
         uint32_t slot_checksum;         // FNV-1a of everything else: detects a torn / corrupt slot
         payload data;
     };
@@ -121,15 +121,6 @@ namespace
         payload_v3 data;
     };
 
-    struct save_block_v2
-    {
-        char magic[8];
-        int32_t version;
-        int32_t count;
-        uint32_t checksum;
-        account items[legacy_max_accounts];
-    };
-
     // The current slot's block (~15 KB, in EWRAM). While locked it holds the encrypted save;
     // unlocking decrypts it in place, copies the accounts out and wipes the plaintext.
     BN_DATA_EWRAM_BSS save_block block;
@@ -137,6 +128,7 @@ namespace
 
     struct
     {
+        bool unencrypted_save_rejected = false;
         bool pin_enabled = false;
         bool unlocked = true;
         bool legacy = false;            // the loaded save is version 3 (in legacy_block)
@@ -185,6 +177,29 @@ namespace
         }
 
         return true;
+    }
+
+    // Inspect both slots before choosing a save: an older plaintext copy must not be
+    // hidden by a newer encrypted one. Also reject recognizable damaged plaintext saves
+    // rather than treating them as blank SRAM and overwriting them during setup.
+    bool contains_unencrypted_save()
+    {
+        for(int slot = 0; slot < sram_slot_count; ++slot)
+        {
+            save_header header;
+            bn::sram::read_offset(header, slot * sram_slot_size);
+            bool unencrypted = magic_matches(header.magic) &&
+                    (header.version == 2 || ((header.version == 3 || header.version == save_version) &&
+                                            ! (header.flags & flag_encrypted)));
+            vault::wipe(&header, sizeof(header));
+
+            if(unencrypted)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     // Guards against bad data reaching the text renderer or the TOTP code.
@@ -248,7 +263,7 @@ namespace
     {
         const save_header& header = candidate.header;
 
-        if(! magic_matches(header.magic) || header.version != save_version)
+        if(! magic_matches(header.magic) || header.version != save_version || ! (header.flags & flag_encrypted))
         {
             return false;
         }
@@ -258,13 +273,8 @@ namespace
             return false;
         }
 
-        // In an encrypted save the count is ciphertext: it's checked after decryption instead.
-        if(header.flags & flag_encrypted)
-        {
-            return true;
-        }
-
-        return candidate.data.count >= 0 && candidate.data.count <= max_accounts;
+        // The count is ciphertext: it's checked after decryption instead.
+        return true;
     }
 
     // Takes the password settings from a header. Returns false if they're unusable.
@@ -339,27 +349,20 @@ namespace
             data.items[i] = accounts.items[i];
         }
 
-        if(state.pin_enabled)
+        block.header.flags |= flag_encrypted;
+        block.header.kdf_blocks = state.kdf.blocks;
+        block.header.kdf_passes = state.kdf.passes;
+
+        for(int i = 0; i < vault::salt_size; ++i)
         {
-            block.header.flags |= flag_encrypted;
-            block.header.kdf_blocks = state.kdf.blocks;
-            block.header.kdf_passes = state.kdf.passes;
-
-            for(int i = 0; i < vault::salt_size; ++i)
-            {
-                block.header.salt[i] = state.salt[i];
-            }
-
-            entropy_add(&block.header.save_counter, sizeof(block.header.save_counter));
-            random_bytes(block.header.nonce, vault::nonce_size);
-
-            vault::seal(state.key, block.header.nonce, reinterpret_cast<const uint8_t*>(&block.header),
-                        sizeof(block.header), reinterpret_cast<uint8_t*>(&data), sizeof(data), block.mac);
+            block.header.salt[i] = state.salt[i];
         }
-        else
-        {
-            block.checksum = checksum(&data, sizeof(data));
-        }
+
+        entropy_add(&block.header.save_counter, sizeof(block.header.save_counter));
+        random_bytes(block.header.nonce, vault::nonce_size);
+
+        vault::seal(state.key, block.header.nonce, reinterpret_cast<const uint8_t*>(&block.header),
+                    sizeof(block.header), reinterpret_cast<uint8_t*>(&data), sizeof(data), block.mac);
 
         block.slot_checksum = slot_checksum(block);
 
@@ -457,7 +460,7 @@ namespace
         }
     }
 
-    // Version 3 / 2 saves live at offset 0. The first version 4 save then goes to slot 1,
+    // Encrypted version 3 saves live at offset 0. The first version 4 save goes to slot 1,
     // leaving the old save untouched until a later save.
     void load_legacy(account_list& accounts)
     {
@@ -469,42 +472,16 @@ namespace
             return;
         }
 
-        if(header.version == 3)
+        if(header.version == 3 && (header.flags & flag_encrypted))
         {
             state.active_slot = 0;
             state.save_counter = header.save_counter;
             accounts.custom_order = (header.flags & flag_custom_order) != 0;
 
-            if(header.flags & flag_encrypted)
+            if(apply_encrypted_header(header))
             {
-                if(apply_encrypted_header(header))
-                {
-                    state.legacy = true;
-                }
+                state.legacy = true;
             }
-            else if(legacy_block.checksum == checksum(&legacy_block.data, sizeof(legacy_block.data)))
-            {
-                copy_into_list(legacy_block.data.count, legacy_max_accounts, legacy_block.data.items, accounts);
-            }
-
-            return;
-        }
-
-        if(header.version == 2)
-        {
-            static save_block_v2 old_block;
-            bn::sram::read(old_block);
-
-            uint32_t expected = fnv1a(checksum(&old_block.count, sizeof(old_block.count)),
-                                      old_block.items, sizeof(old_block.items));
-
-            if(old_block.checksum == expected)
-            {
-                state.active_slot = 0;
-                copy_into_list(old_block.count, legacy_max_accounts, old_block.items, accounts);
-            }
-
-            vault::wipe(&old_block, sizeof(old_block));
         }
     }
 }
@@ -518,6 +495,14 @@ void load_accounts(account_list& accounts)
     accounts.clock = clock_settings();          // defaults: also for saves without a clock record
     state = {};
 
+    if(contains_unencrypted_save())
+    {
+        state.unencrypted_save_rejected = true;
+        vault::wipe(&block, sizeof(block));
+        vault::wipe(&legacy_block, sizeof(legacy_block));
+        return;
+    }
+
     if(! load_newest_slot())
     {
         load_legacy(accounts);
@@ -530,16 +515,12 @@ void load_accounts(account_list& accounts)
     accounts.theme = theme_from_flags(header.flags);
     load_clock_record(header.save_counter, accounts);
 
-    if(header.flags & flag_encrypted)
-    {
-        apply_encrypted_header(header);
-        return;
-    }
+    apply_encrypted_header(header);
+}
 
-    if(block.checksum == checksum(&block.data, sizeof(block.data)))
-    {
-        copy_into_list(block.data.count, max_accounts, block.data.items, accounts);
-    }
+bool unencrypted_save_rejected()
+{
+    return state.unencrypted_save_rejected;
 }
 
 bool pin_enabled()
@@ -554,6 +535,11 @@ bool locked()
 
 pin_result unlock_accounts(const char* pin, int pin_size, account_list& accounts)
 {
+    if(state.unencrypted_save_rejected)
+    {
+        return pin_result::unsupported_save;
+    }
+
     uint8_t key[vault::key_size];
 
     if(pin_result result = derive(pin, pin_size, state.salt, state.kdf, key); result != pin_result::ok)
@@ -609,6 +595,11 @@ pin_result unlock_accounts(const char* pin, int pin_size, account_list& accounts
 
 pin_result verify_pin(const char* pin, int pin_size)
 {
+    if(state.unencrypted_save_rejected)
+    {
+        return pin_result::unsupported_save;
+    }
+
     uint8_t key[vault::key_size];
 
     if(pin_result result = derive(pin, pin_size, state.salt, state.kdf, key); result != pin_result::ok)
@@ -624,6 +615,11 @@ pin_result verify_pin(const char* pin, int pin_size)
 
 pin_result set_pin(const char* pin, int pin_size, const account_list& accounts)
 {
+    if(state.unencrypted_save_rejected)
+    {
+        return pin_result::unsupported_save;
+    }
+
     uint8_t salt[vault::salt_size];
     uint8_t key[vault::key_size];
     random_bytes(salt, vault::salt_size);
@@ -662,7 +658,7 @@ void lock_accounts(account_list& accounts)
 
 void save_accounts(const account_list& accounts)
 {
-    if(locked())
+    if(state.unencrypted_save_rejected || ! state.pin_enabled || locked())
     {
         return;
     }

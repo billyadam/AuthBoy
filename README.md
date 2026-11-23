@@ -73,6 +73,12 @@ build scripts), git and make.
 Your accounts are in the emulator's save file (`.sav` / `.srm` next to the ROM), not in the
 repo: copy it along to keep them on another PC. They stay encrypted with your password.
 
+Unencrypted saves from older builds are rejected without modification, including a plaintext
+backup slot beside an encrypted save. To start fresh, first back up the old save and recover
+any accounts you need with a compatible older build, then remove the old save from your emulator
+or cartridge. Encrypted version 3 and 4 saves remain supported when neither slot contains a
+recognized unencrypted save.
+
 ## Tests
 
 The TOTP and encryption code is portable C++ and is tested on the host PC against official

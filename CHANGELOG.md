@@ -8,6 +8,9 @@ The save format has its own version number (currently 4) and changes independent
 
 ## Unreleased
 
+- Reject unencrypted saves without loading or overwriting them, with a startup message.
+  Both SRAM slots are checked; encrypted version 3 / 4 saves remain supported. Saving before
+  password setup is disabled.
 - Set clock screen (Settings, and once during first-time setup): set the local date and time to
   the second and the UTC offset (UTC-12:00 to UTC+14:00, 15 minute steps). The time is frozen
   while editing and starts when A is pressed, so it can be matched to a phone. The cartridge
@@ -18,8 +21,9 @@ The save format has its own version number (currently 4) and changes independent
 - Settings: Set clock row (Field Guide's menu rows are 2 px closer to fit five)
 - Settings shows how many accounts are stored ("34 accounts stored") instead of "Password on"
 - About pages (SELECT in Settings): version, author, a QR Code of the GitHub link, security
-  notes (not audited, avoid emulator save states while unlocked, keep a 2FA backup), the
-  algorithms used and the libraries with their licenses
+  notes (not audited, offline password guessing, avoid emulator save states while unlocked,
+  keep backups and recovery codes, forgotten passwords cannot be recovered), the algorithms
+  used and the libraries with their licenses
 - Classic Original: welcome and unlocking screens centered, settings list evenly spaced
 
 ## v1.0.0 (2026-11-23)

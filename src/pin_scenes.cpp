@@ -239,6 +239,21 @@ namespace
     }
 }
 
+[[noreturn]] void run_rejected_save_scene()
+{
+    const char* lines[] = {
+        "Unencrypted save not supported.",
+        "Save unchanged. Power off, then",
+        "back up and remove the old save.",
+    };
+    painters().screens.message(lines, 3, nullptr);
+
+    while(true)
+    {
+        frame_update();
+    }
+}
+
 void run_pin_setup_scene(account_list& accounts)
 {
     welcome_screen("Set a password to encrypt", "your accounts");
