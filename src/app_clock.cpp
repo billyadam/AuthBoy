@@ -9,7 +9,22 @@
 namespace app
 {
 
-rtc_reading read_rtc()
+namespace
+{
+    clock_settings active_settings;
+}
+
+void set_clock_settings(const clock_settings& settings)
+{
+    active_settings = clock_settings_valid(settings) ? settings : clock_settings();
+}
+
+const clock_settings& current_clock_settings()
+{
+    return active_settings;
+}
+
+rtc_reading read_raw_rtc()
 {
     if(! bn::time::active())
     {
@@ -39,6 +54,18 @@ rtc_reading read_rtc()
     int64_t local_time = totp::unix_time(2000 + date->year(), date->month(), date->month_day(),
                                          time_after->hour(), time_after->minute(), time_after->second());
     return { rtc_status::ok, local_time };
+}
+
+rtc_reading read_rtc()
+{
+    rtc_reading result = read_raw_rtc();
+
+    if(result.status == rtc_status::ok)
+    {
+        result.local_time += active_settings.correction_seconds;
+    }
+
+    return result;
 }
 
 }

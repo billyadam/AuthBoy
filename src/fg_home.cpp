@@ -269,8 +269,8 @@ namespace
             date_text += " UTC";
 
             // Short form ("+7", "+5:30") so the date doesn't run into the title.
-            int abs_offset = utc_offset_minutes < 0 ? -utc_offset_minutes : utc_offset_minutes;
-            date_text += utc_offset_minutes < 0 ? '-' : '+';
+            int abs_offset = zone_minutes() < 0 ? -zone_minutes() : zone_minutes();
+            date_text += zone_minutes() < 0 ? '-' : '+';
             append_padded(date_text, abs_offset / 60, 1);
 
             if(abs_offset % 60)

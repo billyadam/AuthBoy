@@ -39,6 +39,33 @@ namespace
         ui::classic_text(text_font, text, x - 120, y - 72, ui::align::left);
     }
 
+    // Set clock: three monospace rows (8 px per character), centered; a field is a run of
+    // characters in its row.
+    constexpr int clock_date_y = -22, clock_time_y = -2, clock_zone_y = 18;
+    constexpr int clock_readout_y = 36;
+
+    struct clock_span
+    {
+        int y, first, length, row_length;
+    };
+
+    constexpr clock_span clock_spans[clock_field_count] = {
+        { clock_date_y, 0, 4, 10 }, { clock_date_y, 5, 2, 10 }, { clock_date_y, 8, 2, 10 },
+        { clock_time_y, 0, 2, 8 }, { clock_time_y, 3, 2, 8 }, { clock_time_y, 6, 2, 8 },
+        { clock_zone_y, 3, 6, 9 },
+    };
+
+    // The selected field: the keyboard's key cursor behind its characters.
+    void clock_cursor(int field)
+    {
+        const clock_span& span = clock_spans[field];
+        int x = 120 - span.row_length * 4 + span.first * 8;
+        int top = 72 + span.y;
+        int width = span.length * 8;
+        ui::fill(x - 2, top + 1, width + 4, 14, ui::classic_key_edge);
+        ui::fill(x - 1, top + 2, width + 2, 12, ui::classic_key);
+    }
+
     void message_lines(const char* line_1, const char* line_2, const char* line_3, const char* a_label)
     {
         clear(0, 160);
@@ -145,6 +172,58 @@ namespace
             ui::classic_text(classic_font::small, "A: choose   B: back", 0, 66);
         }
 
+        void set_clock(const clock_editor_state& state) override
+        {
+            clear(0, 160);
+            set_clock_changed(state);
+
+            if(state.running)
+            {
+                ui::classic_text(classic_font::small, "A: done   B: set again", 0, 66);
+            }
+            else
+            {
+                bn::string<40> buttons = "A: start clock   B: ";
+                buttons += state.back_label;
+                ui::classic_text(classic_font::small, "</>: field   Up/Down: +-1   L/R: +-10", 0, 50);
+                ui::classic_text(classic_font::small, buttons, 0, 66);
+            }
+        }
+
+        void set_clock_changed(const clock_editor_state& state) override
+        {
+            clear(0, 72 + clock_readout_y + 16);
+            ui::classic_text(classic_font::small, "Set clock", 0, -66);
+            ui::classic_text(classic_font::small, state.running ? "RUNNING" : "PAUSED", 116, -66, ui::align::right);
+            ui::classic_text(classic_font::small, state.running ? "Running. Compare with phone." :
+                                                                  "Press A when phone shows this", 0, -46);
+
+            if(! state.running && state.arrows_visible)
+            {
+                clock_cursor(state.field);
+            }
+
+            bn::string<16> date = clock_cell_text(state, clock_field_year);
+            date += '-';
+            date += clock_cell_text(state, clock_field_month);
+            date += '-';
+            date += clock_cell_text(state, clock_field_day);
+
+            bn::string<16> time = clock_cell_text(state, clock_field_hour);
+            time += ':';
+            time += clock_cell_text(state, clock_field_minute);
+            time += ':';
+            time += clock_cell_text(state, clock_field_second);
+
+            bn::string<16> zone = "UTC";
+            zone += clock_cell_text(state, clock_field_zone);
+
+            ui::classic_text(classic_font::mono, date, 0, clock_date_y);
+            ui::classic_text(classic_font::mono, time, 0, clock_time_y);
+            ui::classic_text(classic_font::mono, zone, 0, clock_zone_y);
+            ui::classic_text(classic_font::small, clock_utc_readout(state), 0, clock_readout_y);
+        }
+
         void settings_item(const settings_state& state, int index) override
         {
             int y = settings_first_y + index * settings_spacing;
@@ -163,6 +242,10 @@ namespace
             case settings_option_theme:
                 line += "Theme: ";
                 line += theme_name(state.accounts.theme);
+                break;
+
+            case settings_option_clock:
+                line += "Set clock";
                 break;
 
             case settings_option_lock:

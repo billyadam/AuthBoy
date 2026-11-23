@@ -4,6 +4,7 @@
 #include "bn_string.h"
 
 #include "app_text.h"
+#include "clock_scene.h"
 #include "entropy.h"
 #include "keyboard.h"
 #include "otp_export.h"
@@ -246,6 +247,14 @@ void run_pin_setup_scene(account_list& accounts)
     {
         choose_new_pin(accounts, true);
     }
+
+    // Like setting the clock at the start of a new game. Skipped if there's no working RTC.
+    run_set_clock_scene(accounts, true);
+}
+
+void show_message(const char* line_1, const char* line_2, const char* line_3, const char* a_label)
+{
+    message_screen(line_1, line_2, line_3, a_label);
 }
 
 void run_title_scene()
@@ -384,6 +393,12 @@ void run_settings_menu(account_list& accounts)
                 save_accounts(accounts);
                 state.frame_counter = 0;
                 painters().screens.settings(state);     // the whole screen in the new look
+                frame_update();
+                continue;
+
+            case settings_option_clock:
+                run_set_clock_scene(accounts, false);
+                painters().screens.settings(state);
                 frame_update();
                 continue;
 

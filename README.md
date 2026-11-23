@@ -21,7 +21,9 @@ Current version: **1.0.0** (shown in Settings). See [CHANGELOG.md](CHANGELOG.md)
 
 - A cartridge or emulator with a **real-time clock (RTC)**. Some emulators only enable the
   RTC for known commercial games; you may have to force it on for this ROM.
-- The RTC is assumed to be set to **UTC+7** (`utc_offset_minutes` in `include/app_clock.h`).
+- **Set clock** (Settings, and once during first-time setup) sets the local time and the UTC
+  offset. The RTC itself isn't changed: the app stores a correction and the zone. Until it's
+  used, the RTC is taken as local time in UTC+7.
 
 ## Building
 
@@ -58,7 +60,8 @@ make -C tests
 |---|---|
 | List | Up/Down: select, L/R: page up/down, A: options (rename, change key, show secret, move, delete), START: add, SELECT: settings |
 | Keyboard | D-pad: move, A: type, B: delete, START: done, L: cancel (name: SELECT case, R space) |
-| Settings | Sort A-Z / Z-A / Custom, Theme (A cycles through the five), Lock now, Change password |
+| Settings | Sort A-Z / Z-A / Custom, Theme (A cycles through the five), Set clock, Lock now, Change password |
+| Set clock | Left/Right field, Up/Down ±1 (zone ±15 min), L/R ±10 (zone ±1 h), A start the clock when your phone shows that time, then A done / B set again |
 
 ## Security notes
 

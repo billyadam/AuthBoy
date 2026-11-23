@@ -3,6 +3,8 @@
 
 #include <cstdint>
 
+#include "app_clock.h"
+
 namespace app
 {
     constexpr int max_accounts = 256;
@@ -42,6 +44,9 @@ namespace app
 
         // Kept when the store is locked (only the accounts are cleared).
         ui_theme theme = ui_theme::field_guide;
+
+        // Clock zone and correction (Set clock). Kept when locked, like the theme.
+        clock_settings clock;
     };
 
     // Fills order[0..count) with item indexes in display order.

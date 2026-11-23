@@ -295,6 +295,59 @@ namespace
             return logo;
         }
 
+        void clock_info(const bn::string_view& text, bool) const override
+        {
+            background(4, 28, 232, 18);
+            outline(4, 28, 232, 18, frame);
+            ui::fill(9, 34, 7, 7, amber);
+            ui::text(ui::font::body, text, 21, 33, amber);
+        }
+
+        void clock_panel(int x, int y, int width, int height) const override
+        {
+            background(x, y, width, height);
+            outline(x, y, width, height, frame);
+        }
+
+        uint8_t clock_cell(int x, int y, int width, int height, bool selected) const override
+        {
+            if(selected)
+            {
+                ui::fill(x, y, width, height, amber);
+                return bg;
+            }
+
+            outline(x, y, width, height, frame);
+            return amber;
+        }
+
+        uint8_t clock_arrow_color() const override
+        {
+            return amber;
+        }
+
+        // "[PAUSED]" in dim text; RUNNING inverted.
+        void clock_tag(bool running, bool) const override
+        {
+            background(150, 0, 90, 22);
+
+            if(running)
+            {
+                int width = ui::text_width(ui::font::digits6, "RUNNING") + 6;
+                ui::fill(234 - width, 6, width, 10, amber);
+                ui::text(ui::font::digits6, "RUNNING", 234 - width + 3, 8, bg);
+            }
+            else
+            {
+                ui::text(ui::font::digits6, "[PAUSED]", 234, 8, dim, ui::no_shadow, 1, ui::align::right);
+            }
+        }
+
+        bool clock_upper_labels() const override
+        {
+            return true;
+        }
+
         void input_box(int x, int y, int width, int height) const override
         {
             background(x, y, width, height);

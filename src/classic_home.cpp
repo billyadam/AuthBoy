@@ -164,7 +164,7 @@ namespace
             bn::string<40> clock_text;
             append_date_time(clock_text, totp::civil_from_unix(s.rtc.local_time));
             clock_text += "  ";
-            append_utc_offset(clock_text, utc_offset_minutes);
+            append_utc_offset(clock_text, zone_minutes());
             ui::classic_text(classic_font::small, clock_text, 0, -70);
 
             int remaining = s.remaining_seconds();

@@ -328,6 +328,17 @@ namespace
             }
         }
 
+        // Tighter than the other skins: every item is a filled chip.
+        int settings_top_padding() const override
+        {
+            return 3;
+        }
+
+        int settings_bottom_padding() const override
+        {
+            return 3;
+        }
+
         void info_box(const bn::string_view& text) const override
         {
             ui::round_fill(4, 28, 232, 18, 3, cyan);
@@ -362,6 +373,49 @@ namespace
         {
             static constexpr uint8_t logo[7] = { 0, deep, secondary, chip, chip_dark, cyan, green };
             return logo;
+        }
+
+        void clock_info(const bn::string_view& text, bool running) const override
+        {
+            ui::round_fill(4, 28, 232, 18, 3, cyan);
+            ui::round_fill(5, 29, 230, 16, 2, deep);
+            ui::round_fill(9, 34, 7, 7, 3, running ? green : tag_ok);
+            ui::text(ui::font::body, text, 21, 33, text_white);
+        }
+
+        // Cyan border, 1 px deep outline (no shadow: the footer is right below).
+        void clock_panel(int x, int y, int width, int height) const override
+        {
+            ui::round_fill(x - 1, y - 1, width + 2, height + 2, 4, deep);
+            ui::round_fill(x, y, width, height, 3, cyan);
+            ui::round_fill(x + 2, y + 2, width - 4, height - 4, 1, chip);
+        }
+
+        uint8_t clock_cell(int x, int y, int width, int height, bool selected) const override
+        {
+            if(selected)
+            {
+                ui::round_fill(x - 1, y - 1, width + 2, height + 2, 2, text_white);
+                ui::round_fill(x, y, width, height, 1, green);
+                return deep;
+            }
+
+            ui::round_fill(x, y, width, height, 1, deep);
+            return cyan;
+        }
+
+        uint8_t clock_arrow_color() const override
+        {
+            return green;
+        }
+
+        void clock_tag(bool running, bool) const override
+        {
+            const char* label = running ? "RUNNING" : "PAUSED";
+            int width = ui::text_width(ui::font::digits6, label) + 12;
+            ui::fill(150, 0, 90, 22, deep);
+            parallelogram(234 - width, 6, width, 11, 3, running ? green : tag_ok);
+            ui::text(ui::font::digits6, label, 234 - width + 6, 8, deep);
         }
 
         void input_box(int x, int y, int width, int height) const override

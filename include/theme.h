@@ -13,6 +13,7 @@
 
 #include "account_store.h"
 #include "app_clock.h"
+#include "totp.h"
 
 namespace app
 {
@@ -174,6 +175,7 @@ namespace app
     {
         settings_option_sort,
         settings_option_theme,
+        settings_option_clock,
         settings_option_lock,
         settings_option_change_password,
         settings_option_count
@@ -194,6 +196,37 @@ namespace app
         const char* secret_text;
         int secret_size;
     };
+
+    // Set clock screen. Paused: the shown time is frozen while the fields are edited, and A
+    // starts it. Running: it ticks; A is done, B sets it again.
+    enum clock_field : uint8_t
+    {
+        clock_field_year,
+        clock_field_month,
+        clock_field_day,
+        clock_field_hour,
+        clock_field_minute,
+        clock_field_second,
+        clock_field_zone,
+        clock_field_count
+    };
+
+    struct clock_editor_state
+    {
+        totp::civil_time local;             // shown local time
+        int zone_minutes = default_zone_minutes;
+        bool running = false;
+        int field = clock_field_second;     // selected field (paused only)
+        bool arrows_visible = true;         // paused: the selected cell's arrows blink
+        bool tag_visible = true;            // running: themes may blink the RUNNING tag
+        const char* back_label = "back";    // paused B label ("skip" in first-time setup)
+    };
+
+    // Cell text: "2026", "11", "05", "+07:00".
+    bn::string<8> clock_cell_text(const clock_editor_state& state, int field);
+
+    // "= 2026-11-23 11:05:00 UTC": the UTC time that will be stored.
+    bn::string<32> clock_utc_readout(const clock_editor_state& state);
 
     // Splits the secret into lines of 4-character groups, as many groups as fit in chars_per_line.
     // Returns the number of characters used from start (0 when done).
@@ -224,6 +257,11 @@ namespace app
 
         virtual void settings(const settings_state& state) = 0;
         virtual void settings_item(const settings_state& state, int index) = 0;
+
+        // Set clock: the whole screen (also when it switches between paused and running), and
+        // the panel and status tag (values, selection, blinking arrows / tag).
+        virtual void set_clock(const clock_editor_state& state) = 0;
+        virtual void set_clock_changed(const clock_editor_state& state) = 0;
 
     protected:
         ~screen_painter() = default;

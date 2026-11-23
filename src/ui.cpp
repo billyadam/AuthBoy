@@ -411,8 +411,72 @@ namespace
         build_derived_font(derived_fonts[2], false, twelve_rows, twelve_columns, 2);
     }
 
+    int symbol_advance(char c)
+    {
+        switch(c)
+        {
+
+        case symbol_left:
+        case symbol_right:
+            return 4;
+
+        case symbol_up:
+        case symbol_down:
+        case symbol_plus_minus:
+            return 6;
+
+        default:
+            return 0;
+        }
+    }
+
+    bool draw_symbol(char c, int x, int y, uint8_t color)
+    {
+        switch(c)
+        {
+
+        case symbol_left:
+            fill(x + 2, y, 1, 5, color);
+            fill(x + 1, y + 1, 1, 3, color);
+            fill(x, y + 2, 1, 1, color);
+            return true;
+
+        case symbol_right:
+            fill(x, y, 1, 5, color);
+            fill(x + 1, y + 1, 1, 3, color);
+            fill(x + 2, y + 2, 1, 1, color);
+            return true;
+
+        case symbol_up:
+            fill(x + 2, y + 1, 1, 1, color);
+            fill(x + 1, y + 2, 3, 1, color);
+            fill(x, y + 3, 5, 1, color);
+            return true;
+
+        case symbol_down:
+            fill(x, y + 1, 5, 1, color);
+            fill(x + 1, y + 2, 3, 1, color);
+            fill(x + 2, y + 3, 1, 1, color);
+            return true;
+
+        case symbol_plus_minus:
+            fill(x + 2, y, 1, 3, color);
+            fill(x, y + 1, 5, 1, color);
+            fill(x, y + 4, 5, 1, color);
+            return true;
+
+        default:
+            return false;
+        }
+    }
+
     int advance(font text_font, char c, int scale)
     {
+        if(int symbol = symbol_advance(c))
+        {
+            return symbol;
+        }
+
         if(derived_font_data* data = derived(text_font))
         {
             return data->advance[glyph_index(c)];
@@ -433,6 +497,11 @@ namespace
 
     void draw_glyph(font text_font, char c, int x, int y, uint8_t color, int scale)
     {
+        if(draw_symbol(c, x, y + (text_font == font::code12 ? 3 : 0), color))
+        {
+            return;
+        }
+
         int index = glyph_index(c);
 
         if(index == 0)

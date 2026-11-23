@@ -138,6 +138,16 @@ namespace ui
         right,
     };
 
+    // Symbols that no font has, drawn with fills by text() in every font (6 px tall, 1 px gap):
+    // d-pad triangles for button pills and the plus-minus sign.
+    constexpr char symbol_left = '\x01';            // 3x5
+    constexpr char symbol_right = '\x02';           // 3x5
+    constexpr char symbol_up = '\x03';              // 5x3
+    constexpr char symbol_down = '\x04';            // 5x3
+    constexpr char symbol_plus_minus = '\x05';      // 5x5
+    constexpr const char* dpad_left_right = "\x01\x02";
+    constexpr const char* dpad_up_down = "\x03\x04";
+
     // Allocates the canvas and background. Call once after bn::core::init().
     void init();
 

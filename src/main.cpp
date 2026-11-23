@@ -21,6 +21,7 @@ int main()
     ui::init();
     app::load_accounts(accounts);
     app::set_theme(accounts.theme);     // known before unlocking: the save header isn't encrypted
+    app::set_clock_settings(accounts.clock);    // also known before unlocking
     int selected = 0;   // display position in the list
 
     // Title screen at boot. First run gets the same screen as part of password setup instead.

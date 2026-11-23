@@ -5,6 +5,7 @@
 
 #include "bn_string.h"
 
+#include "clock_layout.h"
 #include "version.h"
 
 namespace app::skin
@@ -12,7 +13,7 @@ namespace app::skin
 
 namespace
 {
-    constexpr const char* settings_names[settings_option_count] = { "Sort", "Theme", "Lock now", "Change password" };
+    constexpr const char* settings_names[settings_option_count] = { "Sort", "Theme", "Set clock", "Lock now", "Change password" };
 
     // Settings menu box
     constexpr int settings_x = 4, settings_y = 50, settings_width = 232, settings_step = 16;
@@ -37,7 +38,9 @@ namespace
 
     int settings_height(const skin& look)
     {
-        return 2 * look.box_border() + 8 + settings_option_count * settings_step;
+        // 15 px items, settings_step apart
+        return 2 * look.box_border() + look.settings_top_padding() + look.settings_bottom_padding() +
+               settings_option_count * settings_step - (settings_step - 15);
     }
 }
 
@@ -170,10 +173,84 @@ void skin_screen_painter::settings_item(const settings_state& state, int index)
     }
 
     bool selected = index == state.selected;
-    menu_item_info info = { settings_x, settings_width, settings_y + _skin.box_border() + 5 + index * settings_step,
+    menu_item_info info = { settings_x, settings_width, settings_y + _skin.box_border() + _skin.settings_top_padding() + index * settings_step,
                             settings_names[index], value, selected, false,
                             selected ? ui::cursor_bob(state.frame_counter) : 0 };
     _skin.menu_item(info);
+}
+
+int skin::settings_top_padding() const
+{
+    return 5;
+}
+
+int skin::settings_bottom_padding() const
+{
+    return 4;
+}
+
+bool skin::clock_upper_labels() const
+{
+    return false;
+}
+
+void skin_screen_painter::set_clock(const clock_editor_state& state)
+{
+    using namespace clock_layout;
+
+    _skin.background(0, 0, 240, 160);
+    _skin.header("Set clock", false);
+    _skin.clock_info(info_text(state), state.running);
+
+    set_clock_changed(state);
+
+    if(state.running)
+    {
+        const hint hints[] = { { "A", "done" }, { "B", "set again" } };
+        _skin.footer_bar(running_footer_top);
+        footer_hints(_skin, running_row_y, hints, 2);
+    }
+    else
+    {
+        const hint row_1[] = {
+            { ui::dpad_left_right, "field" }, { ui::dpad_up_down, "adjust" }, { "L R", "\x05" "10" }
+        };
+        const hint row_2[] = { { "A", "start clock" }, { "B", state.back_label } };
+        _skin.footer_bar(paused_footer_top);
+        footer_hints(_skin, paused_row_1_y, row_1, 3);
+        footer_hints(_skin, paused_row_2_y, row_2, 2);
+    }
+}
+
+void skin_screen_painter::set_clock_changed(const clock_editor_state& state)
+{
+    using namespace clock_layout;
+
+    _skin.clock_tag(state.running, state.tag_visible);
+
+    layout cells = make_layout();
+    uint8_t text = _skin.colors.box;
+    uint8_t dim = _skin.colors.box_dim;
+    bool upper_labels = _skin.clock_upper_labels();
+    _skin.clock_panel(panel_x, panel_y, panel_width, panel_height);
+    ui::text(ui::font::body, upper_labels ? "DATE" : "Date", label_x, date_label_y, text);
+    ui::text(ui::font::body, upper_labels ? "TIME" : "Time", label_x, time_label_y, text);
+    ui::text(ui::font::body, upper_labels ? "ZONE" : "Zone", label_x, zone_label_y, text);
+    separators(cells, dim, text);
+
+    for(int field = 0; field < clock_field_count; ++field)
+    {
+        const rect& cell = cells.cells[field];
+        bool selected = ! state.running && field == state.field;
+        cell_text(state, field, cell, _skin.clock_cell(cell.x, cell.y, cell.width, cell.height, selected));
+    }
+
+    readout(state, dim);
+
+    if(! state.running && state.arrows_visible)
+    {
+        arrows(cells.cells[state.field], _skin.clock_arrow_color());
+    }
 }
 
 }

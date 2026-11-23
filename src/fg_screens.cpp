@@ -4,6 +4,7 @@
 
 #include "bn_string.h"
 
+#include "clock_layout.h"
 #include "ui.h"
 #include "version.h"
 
@@ -12,10 +13,11 @@ namespace app::field_guide
 
 namespace
 {
-    constexpr const char* settings_names[settings_option_count] = { "Sort", "Theme", "Lock now", "Change password" };
+    constexpr const char* settings_names[settings_option_count] = { "Sort", "Theme", "Set clock", "Lock now", "Change password" };
 
     // Settings menu box (screen 05)
-    constexpr int settings_box_x = 4, settings_box_y = 52, settings_box_width = 232;
+    constexpr int settings_box_x = 4, settings_box_y = 50, settings_box_width = 232;
+    constexpr int settings_step = 16;     // 15 px bars, 1 px apart: five items fit above the footer
 
     // Logo colors: outline, shackle, body, body shade, screen, A button
     constexpr uint8_t logo_colors[7] = { 0, ui::ink, ui::bevel, ui::red, ui::header_shadow, ui::info, ui::selection };
@@ -164,7 +166,7 @@ namespace
         void settings(const settings_state& state) override
         {
             constexpr ui::hint footer[] = { { "A", "choose" }, { "B", "back" } };
-            constexpr int box_height = 9 + settings_option_count * 18 + 1;
+            constexpr int box_height = 9 + settings_option_count * settings_step + 1;
 
             ui::background();
             ui::header("Settings");
@@ -186,9 +188,12 @@ namespace
             ui::footer_hints(147, footer, 2);
         }
 
+        void set_clock(const clock_editor_state& state) override;
+        void set_clock_changed(const clock_editor_state& state) override;
+
         void settings_item(const settings_state& state, int index) override
         {
-            int item_y = settings_box_y + 9 + index * 18;
+            int item_y = settings_box_y + 9 + index * settings_step;
             bool is_selected = index == state.selected;
             ui::menu_item(settings_box_x, settings_box_width, item_y, settings_names[index], ui::ink, ui::light_shadow,
                           is_selected, is_selected ? ui::cursor_bob(state.frame_counter) : 0);
@@ -214,6 +219,86 @@ namespace
 
     screen_painter_impl painter;
 }
+
+void screen_painter_impl::set_clock(const clock_editor_state& state)
+{
+    using namespace clock_layout;
+
+    ui::background();
+    ui::header("Set clock");
+
+    ui::panel(info_x, info_y, info_width, info_height, ui::info, false);
+    ui::round_fill(dot_x, dot_y, dot_size, dot_size, 3, state.running ? ui::green : ui::selection);
+    ui::text(ui::font::body, info_text(state), info_text_x, info_text_y, ui::ink);
+
+    set_clock_changed(state);
+
+    if(state.running)
+    {
+        const ui::hint hints[] = { { "A", "done" }, { "B", "set again" } };
+        ui::footer_bar(running_footer_top);
+        ui::footer_hints(running_row_y, hints, 2);
+    }
+    else
+    {
+        const ui::hint row_1[] = {
+            { ui::dpad_left_right, "field" }, { ui::dpad_up_down, "adjust" }, { "L R", "\x05" "10" }
+        };
+        const ui::hint row_2[] = { { "A", "start clock" }, { "B", state.back_label } };
+        ui::footer_bar(paused_footer_top);
+        ui::footer_hints(paused_row_1_y, row_1, 3);
+        ui::footer_hints(paused_row_2_y, row_2, 2);
+    }
+}
+
+void screen_painter_impl::set_clock_changed(const clock_editor_state& state)
+{
+    using namespace clock_layout;
+
+    // Status tag
+    const char* tag = state.running ? "RUNNING" : "PAUSED";
+    ui::header_band_clear(150, 90);
+    ui::pill(tag_right - ui::pill_width(tag, ui::font::digits6), tag_y, tag, state.running ? ui::green : ui::selection,
+             ui::ink, ui::font::digits6);
+
+    // Panel
+    layout cells = make_layout();
+    ui::panel(panel_x, panel_y, panel_width, panel_height, ui::white, true);
+    ui::text(ui::font::body, "Date", label_x, date_label_y, ui::ink);
+    ui::text(ui::font::body, "Time", label_x, time_label_y, ui::ink);
+    ui::text(ui::font::body, "Zone", label_x, zone_label_y, ui::ink);
+    separators(cells, ui::secondary, ui::ink);
+
+    for(int field = 0; field < clock_field_count; ++field)
+    {
+        const rect& cell = cells.cells[field];
+        bool selected = ! state.running && field == state.field;
+
+        if(selected)
+        {
+            // 1 px white ring, then 1 px red ring
+            ui::round_fill(cell.x - 2, cell.y - 2, cell.width + 4, cell.height + 4, 2, ui::red);
+            ui::fill(cell.x - 1, cell.y - 1, cell.width + 2, cell.height + 2, ui::white);
+            ui::fill(cell.x, cell.y, cell.width, cell.height, ui::selection);
+            ui::fill(cell.x, cell.y + cell.height - 1, cell.width, 1, ui::selection_edge);
+        }
+        else
+        {
+            ui::fill(cell.x, cell.y, cell.width, cell.height, ui::zebra);
+            ui::fill(cell.x, cell.y + cell.height - 1, cell.width, 1, ui::key_shade);
+        }
+
+        cell_text(state, field, cell, ui::ink);
+    }
+
+    readout(state, ui::secondary);
+
+    if(! state.running && state.arrows_visible)
+    {
+        arrows(cells.cells[state.field], ui::red);
+    }
+}
+
 
 screen_painter& screens()
 {

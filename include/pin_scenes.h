@@ -18,7 +18,10 @@ namespace app
     // Asks for the password again, then shows the account's otpauth:// QR Code and its secret.
     void run_show_secret(const account& item);
 
-    // Sort order (A-Z / custom), lock now, change PIN.
+    // Message with up to three lines (line_2 / line_3 may be nullptr); waits for A or B.
+    void show_message(const char* line_1, const char* line_2, const char* line_3, const char* a_label);
+
+    // Sort order, theme, set clock, lock now, change password.
     void run_settings_menu(account_list& accounts);
 }
 

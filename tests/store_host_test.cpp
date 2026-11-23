@@ -200,6 +200,34 @@ namespace
         std::memcpy(base + v4_slot_checksum_offset, &sum, sizeof(sum));
     }
 
+    // Clock record: right after the version 4 block in each slot.
+    constexpr int v4_block_size = v4_payload_offset + v4_payload_size;
+    constexpr int v4_save_counter_offset = 16;
+
+    uint32_t slot_counter(int slot)
+    {
+        uint32_t counter;
+        std::memcpy(&counter, bn::sram::data + slot * slot_size + v4_save_counter_offset, sizeof(counter));
+        return counter;
+    }
+
+    // What a build without clock settings does when it saves: writes only the block (here a copy
+    // of slot from with the next save counter) into slot to, leaving that slot's record as it was.
+    void save_as_old_build(int from, int to)
+    {
+        uint8_t* target = bn::sram::data + to * slot_size;
+        std::memmove(target, bn::sram::data + from * slot_size, v4_block_size);
+        uint32_t counter = slot_counter(from) + 1;
+        std::memcpy(target + v4_save_counter_offset, &counter, sizeof(counter));
+        uint32_t sum = v4_slot_checksum(to);
+        std::memcpy(target + v4_slot_checksum_offset, &sum, sizeof(sum));
+    }
+
+    bool clock_is(const app::clock_settings& settings, int zone, int correction)
+    {
+        return settings.zone_minutes == zone && settings.correction_seconds == correction;
+    }
+
     // Saves with a password, then reloads and unlocks into list. Returns true if it worked.
     bool reload_and_unlock(const char* password)
     {
@@ -339,6 +367,68 @@ int main()
     app::save_accounts(list);
     app::load_accounts(list);
     check(! list.reverse_order, "z-a: back to A-Z saved");
+
+    // ---- Clock settings (record after the block) ----
+    check(clock_is(list.clock, 7 * 60, 0), "clock: save without a record -> UTC+7, no correction");
+    list.clock.zone_minutes = 5 * 60 + 30;
+    list.clock.correction_seconds = -1234567;
+    app::save_accounts(list);
+    int clock_slot = slot_counter(0) > slot_counter(1) ? 0 : 1;
+    {
+        uint32_t stored;
+        std::memcpy(&stored, bn::sram::data + clock_slot * slot_size + v4_slot_checksum_offset, sizeof(stored));
+        check(v4_slot_checksum(clock_slot) == stored, "clock: block layout unchanged (older builds still load it)");
+        check(std::memcmp(bn::sram::data + clock_slot * slot_size + v4_block_size, "CLK1", 4) == 0,
+              "clock: record right after the block");
+    }
+
+    app::load_accounts(list);
+    check(clock_is(list.clock, 5 * 60 + 30, -1234567) && lists_equal(list, expected), "clock: saved and loaded");
+
+    // An older build saves over the other slot: its record is stale, so the defaults apply.
+    save_as_old_build(clock_slot, 1 - clock_slot);
+    app::load_accounts(list);
+    check(clock_is(list.clock, 7 * 60, 0) && lists_equal(list, expected),
+          "clock: older build's save -> stale record ignored, defaults");
+
+    // And this build saving again brings the record back.
+    list.clock.zone_minutes = -3 * 60 - 30;
+    list.clock.correction_seconds = 42;
+    app::save_accounts(list);
+    app::load_accounts(list);
+    check(clock_is(list.clock, -3 * 60 - 30, 42), "clock: record written again after an older build's save");
+
+    // Damaged record: defaults, the accounts still load.
+    clock_slot = slot_counter(0) > slot_counter(1) ? 0 : 1;
+    bn::sram::data[clock_slot * slot_size + v4_block_size + 9] ^= 0x10;
+    app::load_accounts(list);
+    check(clock_is(list.clock, 7 * 60, 0) && lists_equal(list, expected), "clock: damaged record -> defaults");
+
+    // A zone out of range (with a valid checksum) is not used.
+    list.clock.zone_minutes = 15 * 60;
+    list.clock.correction_seconds = 5;
+    app::save_accounts(list);
+    app::load_accounts(list);
+    check(clock_is(list.clock, 7 * 60, 0), "clock: zone out of range -> defaults");
+    list.clock.zone_minutes = 7 * 60 + 7;
+    app::save_accounts(list);
+    app::load_accounts(list);
+    check(clock_is(list.clock, 7 * 60, 0), "clock: zone not in 15 minute steps -> defaults");
+
+    // Encrypted: known before unlocking, and kept when locking.
+    list.clock.zone_minutes = -12 * 60;
+    list.clock.correction_seconds = -9;
+    check(app::set_pin("CLOCKPW1", 8, list) == app::pin_result::ok, "clock: set password");
+    app::load_accounts(list);
+    check(app::locked() && clock_is(list.clock, -12 * 60, -9), "clock: known before unlocking");
+    check(app::unlock_accounts("CLOCKPW1", 8, list) == app::pin_result::ok && lists_equal(list, expected) &&
+          clock_is(list.clock, -12 * 60, -9), "clock: unlocks with the record");
+    app::lock_accounts(list);
+    check(clock_is(list.clock, -12 * 60, -9), "clock: kept when locking");
+    list.clock.zone_minutes = 14 * 60;
+    check(app::unlock_accounts("CLOCKPW1", 8, list) == app::pin_result::ok, "clock: unlock again");
+    app::save_accounts(list);
+    check(reload_and_unlock("CLOCKPW1") && clock_is(list.clock, 14 * 60, -9), "clock: UTC+14 saved encrypted");
 
     // ---- Version 3 encrypted save (current release) upgrades ----
     erase_sram();

@@ -1,5 +1,6 @@
 #include "theme.h"
 
+#include "app_text.h"
 #include "totp.h"
 
 namespace app
@@ -219,6 +220,62 @@ char keyboard_state::key(int key_row, int key_column) const
     default:
         return (lower_case ? name_lower_rows : name_upper_rows)[key_row][key_column];
     }
+}
+
+bn::string<8> clock_cell_text(const clock_editor_state& state, int field)
+{
+    bn::string<8> text;
+    const totp::civil_time& local = state.local;
+
+    switch(field)
+    {
+
+    case clock_field_year:
+        append_padded(text, local.year, 4);
+        break;
+
+    case clock_field_month:
+        append_padded(text, local.month, 2);
+        break;
+
+    case clock_field_day:
+        append_padded(text, local.day, 2);
+        break;
+
+    case clock_field_hour:
+        append_padded(text, local.hour, 2);
+        break;
+
+    case clock_field_minute:
+        append_padded(text, local.minute, 2);
+        break;
+
+    case clock_field_second:
+        append_padded(text, local.second, 2);
+        break;
+
+    default:
+        {
+            int zone = state.zone_minutes;
+            int abs_zone = zone < 0 ? -zone : zone;
+            text += zone < 0 ? '-' : '+';
+            append_padded(text, abs_zone / 60, 2);
+            text += ':';
+            append_padded(text, abs_zone % 60, 2);
+        }
+        break;
+    }
+
+    return text;
+}
+
+bn::string<32> clock_utc_readout(const clock_editor_state& state)
+{
+    int64_t utc = totp::unix_time(state.local) - int64_t(state.zone_minutes) * 60;
+    bn::string<32> text = "= ";
+    append_date_time(text, totp::civil_from_unix(utc));
+    text += " UTC";
+    return text;
 }
 
 int secret_line(const secret_view& view, int start, int chars_per_line, bn::string<48>& line)

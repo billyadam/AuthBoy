@@ -5,6 +5,8 @@
 #include "bn_timers.h"
 #include "bn_memory.h"
 
+#include <cstddef>
+
 #include "entropy.h"
 #include "vault.h"
 
@@ -78,6 +80,28 @@ namespace
     };
 
     static_assert(sizeof(save_block) <= sram_slot_size, "Save block doesn't fit in an SRAM slot");
+
+    // Clock settings, in the spare space of the slot after the save block. Kept out of the
+    // block so the version 4 format doesn't change: builds without the Set clock screen load
+    // these saves (they only read the block) and their saves leave an older record behind,
+    // which is ignored because its save_counter doesn't match the block's.
+    // Not encrypted or authenticated: the time isn't secret, and changing it can only make
+    // the codes wrong.
+    constexpr char clock_magic[4] = { 'C', 'L', 'K', '1' };
+
+    struct clock_record
+    {
+        char magic[4];
+        uint32_t save_counter;          // the save block's: the record belongs to that save
+        int32_t correction_seconds;
+        int16_t zone_minutes;
+        uint16_t reserved;
+        uint32_t checksum;              // FNV-1a of everything above
+    };
+
+    constexpr int clock_record_offset = (int(sizeof(save_block)) + 3) / 4 * 4;
+    static_assert(clock_record_offset + int(sizeof(clock_record)) <= sram_slot_size,
+                  "Clock record doesn't fit in an SRAM slot");
 
     // ---- Older formats (read only) ----
 
@@ -338,6 +362,20 @@ namespace
         }
 
         block.slot_checksum = slot_checksum(block);
+
+        // The record first: if the block write is interrupted, the slot isn't valid anyway.
+        clock_record record = {};
+
+        for(int i = 0; i < 4; ++i)
+        {
+            record.magic[i] = clock_magic[i];
+        }
+
+        record.save_counter = block.header.save_counter;
+        record.correction_seconds = accounts.clock.correction_seconds;
+        record.zone_minutes = accounts.clock.zone_minutes;
+        record.checksum = checksum(&record, offsetof(clock_record, checksum));
+        bn::sram::write_offset(record, target_slot * sram_slot_size + clock_record_offset);
         bn::sram::write_offset(block, target_slot * sram_slot_size);
 
         state.active_slot = target_slot;
@@ -373,6 +411,37 @@ namespace
         state.active_slot = best_slot;
         state.save_counter = block.header.save_counter;
         return true;
+    }
+
+    // Clock settings of the loaded version 4 save: from its slot's record if the record is
+    // intact and belongs to this save, else the defaults.
+    void load_clock_record(uint32_t save_counter, account_list& accounts)
+    {
+        clock_record record;
+        bn::sram::read_offset(record, state.active_slot * sram_slot_size + clock_record_offset);
+
+        for(int i = 0; i < 4; ++i)
+        {
+            if(record.magic[i] != clock_magic[i])
+            {
+                return;
+            }
+        }
+
+        if(record.checksum != checksum(&record, offsetof(clock_record, checksum)) ||
+           record.save_counter != save_counter)
+        {
+            return;
+        }
+
+        clock_settings settings;
+        settings.correction_seconds = record.correction_seconds;
+        settings.zone_minutes = record.zone_minutes;
+
+        if(clock_settings_valid(settings))
+        {
+            accounts.clock = settings;
+        }
     }
 
     // Re-reads the encrypted save of the current slot (after the in-place decryption was wiped).
@@ -446,6 +515,7 @@ void load_accounts(account_list& accounts)
     accounts.custom_order = false;
     accounts.reverse_order = false;
     accounts.theme = ui_theme::field_guide;     // also for version 2 / 3 saves (no theme in them)
+    accounts.clock = clock_settings();          // defaults: also for saves without a clock record
     state = {};
 
     if(! load_newest_slot())
@@ -458,6 +528,7 @@ void load_accounts(account_list& accounts)
     accounts.custom_order = (header.flags & flag_custom_order) != 0;
     accounts.reverse_order = (header.flags & flag_reverse_order) != 0;
     accounts.theme = theme_from_flags(header.flags);
+    load_clock_record(header.save_counter, accounts);
 
     if(header.flags & flag_encrypted)
     {

@@ -276,6 +276,59 @@ namespace
             return logo;
         }
 
+        void clock_info(const bn::string_view& text, bool) const override
+        {
+            ui::fill(4, 28, 232, 18, dark);
+            ui::fill(5, 29, 230, 16, screen);
+            ui::fill(9, 34, 7, 7, dark);
+            ui::text(ui::font::body, text, 21, 33, dark);
+        }
+
+        void clock_panel(int x, int y, int width, int height) const override
+        {
+            ui::round_fill(x, y, width, height, 2, dark);
+            ui::fill(x + 2, y + 2, width - 4, height - 4, screen);
+        }
+
+        uint8_t clock_cell(int x, int y, int width, int height, bool selected) const override
+        {
+            if(selected)
+            {
+                // Light ring, then a dark ring
+                ui::round_fill(x - 2, y - 2, width + 4, height + 4, 2, dark);
+                ui::fill(x - 1, y - 1, width + 2, height + 2, screen);
+                ui::round_fill(x, y, width, height, 1, dark);
+                return screen;
+            }
+
+            ui::round_fill(x, y, width, height, 1, light);
+            return dark;
+        }
+
+        uint8_t clock_arrow_color() const override
+        {
+            return dark;
+        }
+
+        // RUNNING blinks.
+        void clock_tag(bool running, bool visible) const override
+        {
+            const char* label = running ? "RUNNING" : "PAUSED";
+            int width = ui::text_width(ui::font::digits6, label) + 8;
+            ui::fill(150, 2, 90, 20, dark);
+
+            if(visible || ! running)
+            {
+                ui::round_fill(234 - width, 6, width, 10, 2, running ? screen : light);
+                ui::text(ui::font::digits6, label, 234 - width + 4, 8, dark);
+            }
+        }
+
+        bool clock_upper_labels() const override
+        {
+            return true;
+        }
+
         void input_box(int x, int y, int width, int height) const override
         {
             ui::round_fill(x, y, width, height, 2, dark);

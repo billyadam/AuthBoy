@@ -6,6 +6,17 @@ is a git tag (`v1.0.0`, ...). The version shown in Settings comes from `include/
 
 The save format has its own version number (currently 4) and changes independently.
 
+## Unreleased
+
+- Set clock screen (Settings, and once during first-time setup): set the local date and time to
+  the second and the UTC offset (UTC-12:00 to UTC+14:00, 15 minute steps). The time is frozen
+  while editing and starts when A is pressed, so it can be matched to a phone. The cartridge
+  RTC isn't changed: the app saves a correction and the zone. In all five themes.
+- Clock settings are stored in the spare space after the save in each SRAM slot, so the save
+  format stays 4: v1.0.0 still loads these saves, and saves without clock settings keep
+  UTC+7 with no correction
+- Settings: Set clock row (Field Guide's menu rows are 2 px closer to fit five)
+
 ## v1.0.0 (2026-11-23)
 
 First versioned release.
