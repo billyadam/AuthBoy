@@ -27,12 +27,33 @@ Current version: **1.0.0** (shown in Settings). See [CHANGELOG.md](CHANGELOG.md)
 
 ## Building
 
-1. Install [devkitPro](https://devkitpro.org/wiki/Getting_Started) with the `gba-dev` group.
+Butano isn't installed separately: it's a git submodule of this repo (`butano/`, version
+21.10.1), fetched when you clone. You need devkitPro's GBA tools, Python 3 (used by Butano's
+build scripts), git and make.
+
+1. Install devkitPro with the `gba-dev` group
+   ([Getting Started](https://devkitpro.org/wiki/Getting_Started)):
+
+   - **Linux:** install [devkitPro pacman](https://devkitpro.org/wiki/devkitPro_pacman), then
+
+     ```sh
+     sudo dkp-pacman -S gba-dev
+     sudo apt install python3 git make     # Debian / Ubuntu
+     ```
+
+     Log out and back in so `DEVKITPRO` and `DEVKITARM` are set.
+   - **Windows:** run the [devkitPro installer](https://github.com/devkitPro/installer/releases)
+     and tick **GBA Development**. Build from the **MSYS2** terminal it installs (Start menu →
+     devkitPro → MSYS2), and install Python 3 from python.org with "Add to PATH" ticked.
+   - **macOS:** install the `.pkg` from the same releases page, then
+     `sudo dkp-pacman -S gba-dev`.
+
 2. Clone with the Butano submodule:
 
    ```sh
    git clone --recursive git@github.com:billyadam/AuthBoy.git
-   # or, in an existing clone:
+   # without a GitHub SSH key: git clone --recursive https://github.com/billyadam/AuthBoy.git
+   # if butano/ is empty (cloned without --recursive):
    git submodule update --init
    ```
 
@@ -42,7 +63,15 @@ Current version: **1.0.0** (shown in Settings). See [CHANGELOG.md](CHANGELOG.md)
    make -j$(nproc)
    ```
 
-   This produces `AuthBoy.gba`.
+   This produces `AuthBoy.gba`. If make can't find devkitARM (the variables aren't set, e.g.
+   inside a sandboxed editor), set them for that terminal and build again:
+
+   ```sh
+   export DEVKITPRO=/opt/devkitpro DEVKITARM=/opt/devkitpro/devkitARM
+   ```
+
+Your accounts are in the emulator's save file (`.sav` / `.srm` next to the ROM), not in the
+repo: copy it along to keep them on another PC. They stay encrypted with your password.
 
 ## Tests
 
@@ -51,7 +80,7 @@ test vectors (RFC 4226, RFC 6238, RFC 2202, FIPS 180-1, RFC 9106, RFC 7693 and t
 XChaCha20-Poly1305 draft):
 
 ```sh
-make -C tests
+make -C tests     # needs a host C++ compiler (g++)
 ```
 
 ## Controls
