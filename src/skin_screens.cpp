@@ -5,6 +5,7 @@
 
 #include "bn_string.h"
 
+#include "about_layout.h"
 #include "clock_layout.h"
 #include "version.h"
 
@@ -142,7 +143,7 @@ void skin_screen_painter::show_secret(const secret_view& view)
 
 void skin_screen_painter::settings(const settings_state& state)
 {
-    constexpr hint footer[] = { { "A", "choose" }, { "B", "back" } };
+    constexpr hint footer[] = { { "A", "choose" }, { "SEL", "about" }, { "B", "back" } };
 
     _skin.background(0, 0, 240, 160);
     _skin.header("Settings", false);
@@ -156,7 +157,7 @@ void skin_screen_painter::settings(const settings_state& state)
     }
 
     _skin.footer_bar(footer_top);
-    footer_hints(_skin, footer_top + 3, footer, 2);
+    footer_hints(_skin, footer_top + 3, footer, 3);
 }
 
 void skin_screen_painter::settings_item(const settings_state& state, int index)
@@ -251,6 +252,33 @@ void skin_screen_painter::set_clock_changed(const clock_editor_state& state)
     {
         arrows(cells.cells[state.field], _skin.clock_arrow_color());
     }
+}
+
+void skin_screen_painter::about(const about_state& state)
+{
+    using namespace about_layout;
+
+    _skin.background(0, 0, 240, 160);
+    _skin.header(about_page_title(state.page), false);
+    _skin.header_counter(about_page_counter(state.page));
+    _skin.clock_panel(panel_x, panel_y, panel_width, panel_height);
+
+    if(state.page == 0)
+    {
+        intro(state, _skin.colors.box, _skin.colors.box_dim, _skin.logo_colors());
+    }
+    else if(about_is_security_page(state.page))
+    {
+        security(state.page, _skin.colors.box);
+    }
+    else
+    {
+        items(state.page, _skin.colors.box, _skin.colors.box_dim);
+    }
+
+    const hint hints[] = { { ui::dpad_left_right, "page" }, { "B", "back" } };
+    _skin.footer_bar(footer_top);
+    footer_hints(_skin, footer_top + 3, hints, 2);
 }
 
 }

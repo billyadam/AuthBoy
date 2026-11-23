@@ -89,7 +89,8 @@ make -C tests     # needs a host C++ compiler (g++)
 |---|---|
 | List | Up/Down: select, L/R: page up/down, A: options (rename, change key, show secret, move, delete), START: add, SELECT: settings |
 | Keyboard | D-pad: move, A: type, B: delete, START: done, L: cancel (name: SELECT case, R space) |
-| Settings | Sort A-Z / Z-A / Custom, Theme (A cycles through the five), Set clock, Lock now, Change password |
+| Settings | Sort A-Z / Z-A / Custom, Theme (A cycles through the five), Set clock, Lock now, Change password; SELECT: About |
+| About | Left/Right (or L/R) pages: the app and a QR Code of its GitHub link, security notes, how it works, libraries; B back |
 | Set clock | Left/Right field, Up/Down ±1 (zone ±15 min), L/R ±10 (zone ±1 h), A start the clock when your phone shows that time, then A done / B set again |
 
 ## Security notes

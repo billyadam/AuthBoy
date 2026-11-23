@@ -127,7 +127,7 @@ namespace app::skin
         // ---- Set clock (layout in clock_layout.h; text in colors.box / box_dim) ----
         // Info box with the status dot (paused / running), 4,28 232x18.
         virtual void clock_info(const bn::string_view& text, bool running) const = 0;
-        virtual void clock_panel(int x, int y, int width, int height) const = 0;     // 4,50 232x80
+        virtual void clock_panel(int x, int y, int width, int height) const = 0;     // 4,50 232x80 (also About)
         // Draws a cell's background (and the selection rings around it); returns its text color.
         virtual uint8_t clock_cell(int x, int y, int width, int height, bool selected) const = 0;
         virtual uint8_t clock_arrow_color() const = 0;
@@ -258,6 +258,7 @@ namespace app::skin
         void settings_item(const settings_state& state, int index) override;
         void set_clock(const clock_editor_state& state) override;
         void set_clock_changed(const clock_editor_state& state) override;
+        void about(const about_state& state) override;
 
     private:
         const skin& _skin;

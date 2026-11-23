@@ -17,6 +17,9 @@ The save format has its own version number (currently 4) and changes independent
   UTC+7 with no correction
 - Settings: Set clock row (Field Guide's menu rows are 2 px closer to fit five)
 - Settings shows how many accounts are stored ("34 accounts stored") instead of "Password on"
+- About pages (SELECT in Settings): version, author, a QR Code of the GitHub link, security
+  notes (not audited, avoid emulator save states while unlocked, keep a 2FA backup), the
+  algorithms used and the libraries with their licenses
 - Classic Original: welcome and unlocking screens centered, settings list evenly spaced
 
 ## v1.0.0 (2026-11-23)

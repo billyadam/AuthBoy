@@ -4,6 +4,7 @@
 
 #include "bn_string.h"
 
+#include "about_layout.h"
 #include "clock_layout.h"
 #include "ui.h"
 #include "version.h"
@@ -165,7 +166,7 @@ namespace
 
         void settings(const settings_state& state) override
         {
-            constexpr ui::hint footer[] = { { "A", "choose" }, { "B", "back" } };
+            constexpr ui::hint footer[] = { { "A", "choose" }, { "SEL", "about" }, { "B", "back" } };
             constexpr int box_height = 9 + settings_option_count * settings_step + 1;
 
             ui::background();
@@ -185,9 +186,10 @@ namespace
             }
 
             ui::footer_bar(144);
-            ui::footer_hints(147, footer, 2);
+            ui::footer_hints(147, footer, 3);
         }
 
+        void about(const about_state& state) override;
         void set_clock(const clock_editor_state& state) override;
         void set_clock_changed(const clock_editor_state& state) override;
 
@@ -218,6 +220,34 @@ namespace
     };
 
     screen_painter_impl painter;
+}
+
+void screen_painter_impl::about(const about_state& state)
+{
+    using namespace about_layout;
+
+    ui::background();
+    ui::header(about_page_title(state.page));
+    ui::text(ui::font::digits, about_page_counter(state.page), 233, 8, ui::header_subtext, ui::no_shadow, 1,
+             ui::align::right);
+    ui::panel(panel_x, panel_y, panel_width, panel_height, ui::white, true);
+
+    if(state.page == 0)
+    {
+        intro(state, ui::ink, ui::secondary, logo_colors);
+    }
+    else if(about_is_security_page(state.page))
+    {
+        security(state.page, ui::ink);
+    }
+    else
+    {
+        items(state.page, ui::ink, ui::secondary);
+    }
+
+    const ui::hint hints[] = { { ui::dpad_left_right, "page" }, { "B", "back" } };
+    ui::footer_bar(144);
+    ui::footer_hints(147, hints, 2);
 }
 
 void screen_painter_impl::set_clock(const clock_editor_state& state)

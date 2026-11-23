@@ -228,6 +228,45 @@ namespace app
     // "= 2026-11-23 11:05:00 UTC": the UTC time that will be stored.
     bn::string<32> clock_utc_readout(const clock_editor_state& state);
 
+    // About screen (SELECT in Settings): pages of text, the first with a QR Code of the
+    // project's link.
+    constexpr int about_page_count = 5;
+    constexpr int about_security_page = 1;      // pages 2 and 3: paragraphs of text
+    constexpr int about_security_page_count = 2;
+    constexpr int about_item_count = 4;         // items on pages 4 and 5
+    constexpr int about_security_paragraph_count = 4;
+
+    inline bool about_is_security_page(int page)
+    {
+        return page >= about_security_page && page < about_security_page + about_security_page_count;
+    }
+
+    // Paragraphs of a security page: [first, first + count).
+    inline void about_security_paragraphs(int page, int& first, int& count)
+    {
+        first = page == about_security_page ? 0 : 1;
+        count = page == about_security_page ? 1 : about_security_paragraph_count - 1;
+    }
+    constexpr const char* about_url = "https://github.com/billyadam/AuthBoy";
+    constexpr const char* about_author = "by Billy Adam";
+
+    struct about_item
+    {
+        const char* label;      // small, dim: "Encryption"
+        const char* value;      // "XChaCha20-Poly1305"
+    };
+
+    struct about_state
+    {
+        int page = 0;
+        const uint8_t* qrcode = nullptr;    // about_url, or nullptr
+    };
+
+    const char* about_page_title(int page);             // "About", "Security", "How it works", "Libraries"
+    const about_item* about_page_items(int page);       // about_item_count items (pages 4 and 5)
+    extern const char* const about_security_text[about_security_paragraph_count];
+    bn::string<8> about_page_counter(int page);         // "1/3"
+
     // Splits the secret into lines of 4-character groups, as many groups as fit in chars_per_line.
     // Returns the number of characters used from start (0 when done).
     int secret_line(const secret_view& view, int start, int chars_per_line, bn::string<48>& line);
@@ -262,6 +301,9 @@ namespace app
         // the panel and status tag (values, selection, blinking arrows / tag).
         virtual void set_clock(const clock_editor_state& state) = 0;
         virtual void set_clock_changed(const clock_editor_state& state) = 0;
+
+        // About: the whole screen for a page.
+        virtual void about(const about_state& state) = 0;
 
     protected:
         ~screen_painter() = default;

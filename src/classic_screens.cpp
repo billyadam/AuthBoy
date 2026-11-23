@@ -6,6 +6,7 @@
 
 #include "bn_string.h"
 
+#include "about_layout.h"
 #include "ui.h"
 #include "version.h"
 
@@ -169,7 +170,67 @@ namespace
                 settings_item(state, i);
             }
 
-            ui::classic_text(classic_font::small, "A: choose   B: back", 0, 66);
+            ui::classic_text(classic_font::small, "A: choose   SEL: about   B: back", 0, 66);
+        }
+
+        // Header line with the page counter; page 1: QR Code on the left, the logo and text on
+        // the right, the link under them; pages 2 and 3: "label:" / value lines.
+        void about(const about_state& state) override
+        {
+            clear(0, 160);
+            ui::classic_text(classic_font::small, about_page_title(state.page), 0, -66);
+            ui::classic_text(classic_font::small, about_page_counter(state.page), 116, -66, ui::align::right);
+
+            if(state.page == 0)
+            {
+                constexpr int column_x = 100;
+
+                if(state.qrcode)
+                {
+                    ui::qr_code(state.qrcode, 8, 22, 96, 2);
+                }
+
+                ui::logo(ui::logo_frame::big, column_x, 22, logo_colors);
+                bn::string<24> name = "AuthBoy ";
+                name += app_version_label;
+                text_at(classic_font::small, name, column_x, 58);
+                text_at(classic_font::small, about_author, column_x, 74);
+                text_at(classic_font::small, "TOTP authenticator", column_x, 90);
+                text_at(classic_font::small, "for the GBA", column_x, 106);
+                ui::classic_text(classic_font::small, "github.com/billyadam/AuthBoy", 0, 52);
+            }
+            else if(about_is_security_page(state.page))
+            {
+                int y = 20;
+                int first, count;
+                about_security_paragraphs(state.page, first, count);
+
+                for(int i = first; i < first + count; ++i)
+                {
+                    about_layout::wrap(about_security_text[i], 224,
+                        [](const bn::string_view& line) { return ui::classic_text_width(classic_font::small, line); },
+                        [&](const bn::string_view& line) {
+                            text_at(classic_font::small, line, 8, y);
+                            y += 11;
+                        });
+                    y += 3;
+                }
+            }
+            else
+            {
+                const about_item* list = about_page_items(state.page);
+
+                for(int i = 0; i < about_item_count; ++i)
+                {
+                    bn::string<24> label = list[i].label;
+                    label += ':';
+                    int y = -46 + i * 26;
+                    text_at(classic_font::small, label, 12, 72 + y);
+                    text_at(classic_font::small, list[i].value, 24, 72 + y + 12);
+                }
+            }
+
+            ui::classic_text(classic_font::small, "</>: page   B: back", 0, 66);
         }
 
         void set_clock(const clock_editor_state& state) override

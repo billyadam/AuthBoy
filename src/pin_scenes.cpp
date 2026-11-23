@@ -334,6 +334,48 @@ void run_show_secret(const account& item)
     }
 }
 
+// About: pages switched with Left/Right (or L/R); B or SELECT goes back.
+void run_about_scene()
+{
+    // Static: kept off the small stack.
+    static uint8_t qrcode[otp_export::qr_buffer_size];
+    static uint8_t temp[otp_export::qr_buffer_size];
+
+    int url_size = 0;
+
+    while(about_url[url_size])
+    {
+        ++url_size;
+    }
+
+    about_state state;
+    state.qrcode = otp_export::make_qr(about_url, url_size, qrcode, temp) ? qrcode : nullptr;
+    painters().screens.about(state);
+    frame_update();
+
+    while(! bn::keypad::b_pressed() && ! bn::keypad::select_pressed())
+    {
+        int old_page = state.page;
+
+        if((bn::keypad::left_pressed() || bn::keypad::l_pressed()) && state.page > 0)
+        {
+            --state.page;
+        }
+
+        if((bn::keypad::right_pressed() || bn::keypad::r_pressed()) && state.page < about_page_count - 1)
+        {
+            ++state.page;
+        }
+
+        if(state.page != old_page)
+        {
+            painters().screens.about(state);
+        }
+
+        frame_update();
+    }
+}
+
 void run_settings_menu(account_list& accounts)
 {
     settings_state state = { accounts };
@@ -358,6 +400,14 @@ void run_settings_menu(account_list& accounts)
         if(bn::keypad::b_pressed())
         {
             return;
+        }
+
+        if(bn::keypad::select_pressed())
+        {
+            run_about_scene();
+            painters().screens.settings(state);
+            frame_update();
+            continue;
         }
 
         if(bn::keypad::a_pressed())

@@ -291,6 +291,67 @@ bn::string<32> clock_utc_readout(const clock_editor_state& state)
     return text;
 }
 
+namespace
+{
+    constexpr about_item how_it_works[about_item_count] = {
+        { "Codes (TOTP, RFC 6238)", "HMAC-SHA-1, 6 digits, every 30 s" },
+        { "Encryption", "XChaCha20-Poly1305" },
+        { "Password key", "Argon2id, 128 KiB, 4 passes" },
+        { "Saving", "2 SRAM slots, power-cut safe" },
+    };
+
+    constexpr about_item libraries[about_item_count] = {
+        { "Game engine", "Butano 21.10.1 (zlib)" },
+        { "Cryptography", "Monocypher 4.0.2 (BSD-2 / CC0)" },
+        { "QR codes", "QR Code generator 1.8.0 (MIT)" },
+        { "Toolchain", "devkitARM" },
+    };
+}
+
+const char* const about_security_text[about_security_paragraph_count] = {
+    "Your accounts are encrypted with your password, but AuthBoy hasn't had a professional "
+    "security audit, so don't count on it being safer than other 2FA apps like, for example, "
+    "Google Authenticator or Authy.",
+    "A copied .sav / .srm file can't be opened without your password. An emulator save state "
+    "made while unlocked can, so avoid save states.",
+    "Don't make this your only 2FA: keep a backup elsewhere.",
+    "How it's encrypted: next page.",
+};
+
+const char* about_page_title(int page)
+{
+    switch(page)
+    {
+
+    case about_security_page:
+    case about_security_page + 1:
+        return "Security";
+
+    case 3:
+        return "How it works";
+
+    case 4:
+        return "Libraries";
+
+    default:
+        return "About";
+    }
+}
+
+const about_item* about_page_items(int page)
+{
+    return page == 4 ? libraries : how_it_works;
+}
+
+bn::string<8> about_page_counter(int page)
+{
+    bn::string<8> text;
+    append_padded(text, page + 1, 1);
+    text += '/';
+    append_padded(text, about_page_count, 1);
+    return text;
+}
+
 int secret_line(const secret_view& view, int start, int chars_per_line, bn::string<48>& line)
 {
     line.clear();
