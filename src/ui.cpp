@@ -15,6 +15,7 @@
 #include "common_variable_8x16_sprite_font.h"
 
 #include "otp_export.h"
+#include "theme.h"
 #include "ui_raster.h"
 
 namespace ui
@@ -933,12 +934,42 @@ uint8_t badge_color(const char* name)
     return uint8_t(badge_0 + hash % 8);
 }
 
-int qr_code(const uint8_t* qrcode, int x, int area_top, int area_height, int max_module)
+int qr_code(const uint8_t* qrcode, int x, int area_top, int area_height, int max_module, bool framed)
 {
-    constexpr int quiet_zone = 4;     // modules of white border required around a QR Code
+    // Keep dark modules on a light background, even in the dark themes.
+    uint8_t dark = qr_dark;
+    uint8_t light = white;
+
+    switch(app::current_theme())
+    {
+    case app::ui_theme::classic:
+        dark = classic_backdrop;
+        light = white;
+        break;
+    case app::ui_theme::net_link:
+        dark = net_bg;
+        light = white;
+        break;
+    case app::ui_theme::pocket_lcd:
+        dark = lcd_dark;
+        light = lcd_screen;
+        break;
+    case app::ui_theme::phosphor:
+        dark = amber_bg;
+        light = amber_text;
+        break;
+    case app::ui_theme::field_guide:
+    default:
+        break;
+    }
+
+    constexpr int quiet_zone = 4;     // modules of light border required around a QR Code
+    bool field_frame = framed && app::current_theme() == app::ui_theme::field_guide;
+    bool net_frame = framed && app::current_theme() == app::ui_theme::net_link;
+    int padding = field_frame || net_frame ? 4 : 0;
     int size = otp_export::qr_size(qrcode);
     int modules = size + 2 * quiet_zone;
-    int pixels = area_height / modules;
+    int pixels = (area_height - 2 * padding) / modules;
 
     if(pixels > max_module)
     {
@@ -946,8 +977,25 @@ int qr_code(const uint8_t* qrcode, int x, int area_top, int area_height, int max
     }
 
     int side = modules * pixels;
-    int y = area_top + (area_height - side) / 2;
-    fill(x, y, side, side, white);
+    int framed_side = side + 2 * padding;
+    int y = area_top + (area_height - framed_side) / 2;
+
+    if(field_frame)
+    {
+        panel(x, y, framed_side, framed_side, light, false);
+    }
+    else if(net_frame)
+    {
+        // Match Net Link's rounded cyan box rim and deep-blue outer edge.
+        round_fill(x, y, framed_side, framed_side, 4, net_deep);
+        round_fill(x + 1, y + 1, framed_side - 2, framed_side - 2, 3, net_cyan);
+        round_fill(x + 3, y + 3, framed_side - 6, framed_side - 6, 1, light);
+    }
+
+    // The frame and rounded corners stay outside the full square quiet zone.
+    x += padding;
+    y += padding;
+    fill(x, y, side, side, light);
 
     for(int module_y = 0; module_y < size; ++module_y)
     {
@@ -956,12 +1004,12 @@ int qr_code(const uint8_t* qrcode, int x, int area_top, int area_height, int max
             if(otp_export::qr_module(qrcode, module_x, module_y))
             {
                 fill(x + (quiet_zone + module_x) * pixels, y + (quiet_zone + module_y) * pixels, pixels, pixels,
-                     qr_dark);
+                     dark);
             }
         }
     }
 
-    return side;
+    return framed_side;
 }
 
 namespace

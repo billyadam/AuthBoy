@@ -147,8 +147,8 @@ namespace
 
             if(view.qrcode)
             {
-                // 4 px modules up to 25x25, 3 px up to 37x37, 2 px for 41x41 and 45x45.
-                panel_x = 4 + ui::qr_code(view.qrcode, 4, area_top, 160 - area_top) + 8;
+                // Include the rounded main-panel border outside the QR's quiet zone.
+                panel_x = 4 + ui::qr_code(view.qrcode, 4, area_top, 160 - area_top, 4, true) + 8;
             }
 
             // Secret in groups of 4 characters, as many groups per line as fit.

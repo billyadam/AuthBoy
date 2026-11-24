@@ -48,7 +48,7 @@ namespace ui
         tab_inactive_text = 28, // #68788f
         hero_accent = 29,       // #e85840
         input_shadow = 30,      // #c8d0e0 name input text shadow
-        qr_dark = 31,           // #000000 QR Code modules (pure black for scanning contrast)
+        qr_dark = 31,           // #000000 legacy QR black, also used by Classic text outlines
 
         badge_0 = 32,           // 8 badge colors: badge_0 + (hash % 8)
 
@@ -218,10 +218,13 @@ namespace ui
     // Stable badge color for an account name.
     uint8_t badge_color(const char* name);
 
-    // Draws a QR Code (black modules, white quiet zone of 4 modules) with its left edge at x,
+    // Draws a QR Code in the active theme's dark/light colors with a 4-module light quiet zone.
+    // Its left edge is at x,
     // centered in [area_top, area_top + area_height) using the biggest whole-pixel module size
-    // that fits (max_module px at most). Returns the side in pixels.
-    int qr_code(const uint8_t* qrcode, int x, int area_top, int area_height, int max_module = 4);
+    // that fits (max_module px at most). Optional framing applies to Field Guide and Net Link,
+    // outside the quiet zone. Returns the side in pixels including the frame.
+    int qr_code(const uint8_t* qrcode, int x, int area_top, int area_height, int max_module = 4,
+                bool framed = false);
 
     // Patterned lines: on pixels drawn every period pixels, starting at x / y.
     void pattern_hline(int x, int y, int width, int on, int period, uint8_t color);

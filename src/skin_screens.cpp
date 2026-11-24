@@ -125,9 +125,9 @@ void skin_screen_painter::show_secret(const secret_view& view)
 
     if(view.qrcode)
     {
-        // 4 px modules up to 25x25, 3 px up to 37x37, 2 px for 41x41 and 45x45. Always black on
-        // white, whatever the theme, so it scans reliably.
-        panel_x = 4 + ui::qr_code(view.qrcode, 4, area_top, 160 - area_top) + 8;
+        // Only Net Link uses a frame; LCD and Phosphor retain their existing layout.
+        panel_x = 4 + ui::qr_code(view.qrcode, 4, area_top, 160 - area_top, 4,
+                                current_theme() == ui_theme::net_link) + 8;
     }
 
     ui::text(ui::font::body, view.qrcode ? "Secret key" : "Link too long for a QR code", panel_x, 30,
